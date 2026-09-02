@@ -1,4 +1,4 @@
-"""First Phoenix Core V2 application-service layer."""
+﻿"""First Phoenix Core V2 application-service layer."""
 
 import hashlib
 import secrets
@@ -8,6 +8,8 @@ from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.errors import AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError
 from phoenix_core.identity.domain import Identity
 from phoenix_core.infrastructure import SQLiteDatabase
+from phoenix_core.modules.service import ModuleService
+from phoenix_core.licensing.service import EntitlementService
 from phoenix_core.organisations.domain import Organisation
 from phoenix_core.organisations.membership import Membership
 from phoenix_core.permissions.domain import Permission
@@ -22,6 +24,8 @@ def _dt(value):
 class CoreFoundationService:
     def __init__(self, db: SQLiteDatabase):
         self.db = db
+        self.module_service = ModuleService(db)
+        self.entitlement_service = EntitlementService(db)
 
     def initialise(self):
         schema = open(
@@ -532,6 +536,98 @@ class CoreFoundationService:
     def authorize(self, identity_id: UUID, organisation_id: UUID, permission: str) -> bool:
         return permission in self.effective_permissions(identity_id, organisation_id)
 
+    # Phase 2.5 â€” Module registry and organisation entitlements
+
+    def register_module(self, code: str, name: str, version: str):
+        return self.module_service.register(code, name, version)
+
+    def get_module(self, module_id: UUID):
+        return self.module_service.get(module_id)
+
+    def get_module_by_code(self, code: str):
+        return self.module_service.get_by_code(code)
+
+    def list_modules(self, *, status: str | None = None):
+        return self.module_service.list(status=status)
+
+    def set_module_status(self, module_id: UUID, status: str):
+        return self.module_service.set_status(module_id, status)
+
+    def enable_module(self, module_id: UUID):
+        return self.module_service.enable(module_id)
+
+    def disable_module(self, module_id: UUID):
+        return self.module_service.disable(module_id)
+
+    def retire_module(self, module_id: UUID):
+        return self.module_service.retire(module_id)
+
+    def grant_module_entitlement(self, organisation_id: UUID, module_id: UUID):
+        return self.entitlement_service.grant(organisation_id, module_id)
+
+    def get_module_entitlement(self, entitlement_id: UUID):
+        return self.entitlement_service.get(entitlement_id)
+
+    def get_organisation_module_entitlement(
+        self, organisation_id: UUID, module_id: UUID
+    ):
+        return self.entitlement_service.get_for_organisation_module(
+            organisation_id, module_id
+        )
+
+    def list_module_entitlements(
+        self, organisation_id: UUID, *, status: str | None = None
+    ):
+        return self.entitlement_service.list_for_organisation(
+            organisation_id, status=status
+        )
+
+    def set_module_entitlement_status(
+        self, entitlement_id: UUID, status: str
+    ):
+        return self.entitlement_service.set_status(entitlement_id, status)
+
+    def suspend_module_entitlement(self, entitlement_id: UUID):
+        return self.entitlement_service.suspend(entitlement_id)
+
+    def activate_module_entitlement(self, entitlement_id: UUID):
+        return self.entitlement_service.activate(entitlement_id)
+
+    def revoke_module_entitlement(self, entitlement_id: UUID):
+        return self.entitlement_service.revoke(entitlement_id)
+
+    def module_available(
+        self, organisation_id: UUID, module_id: UUID
+    ) -> bool:
+        return self.entitlement_service.is_module_available(
+            organisation_id, module_id
+        )
+
+    def has_capability(
+        self,
+        identity_id: UUID,
+        organisation_id: UUID,
+        permission: str,
+        module_id: UUID,
+    ) -> bool:
+        if not self.module_available(organisation_id, module_id):
+            return False
+
+        membership = self.db.execute(
+            """
+            SELECT 1
+            FROM organisation_memberships
+            WHERE identity_id=?
+              AND organisation_id=?
+              AND status='ACTIVE'
+            """,
+            (str(identity_id), str(organisation_id)),
+        ).fetchone()
+
+        if not membership:
+            return False
+
+        return self.authorize(identity_id, organisation_id, permission)
     def record_audit(self, event: AuditEvent):
         self.db.execute(
             """
@@ -551,3 +647,7 @@ class CoreFoundationService:
             ),
         )
         self.db.commit()
+
+
+
+
