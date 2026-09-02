@@ -48,7 +48,8 @@ def test_permission_lifecycle_and_global_uniqueness(tmp_path):
     db, service = make_service(tmp_path)
     p = service.create_permission("sales.quote.create", "Create quotes")
     assert service.get_permission_by_code("SALES.QUOTE.CREATE").id == p.id
-    assert len(service.list_permissions()) == 1
+    permissions = service.list_permissions()
+    assert any(permission.id == p.id for permission in permissions)
     with pytest.raises(ConflictError):
         service.create_permission("sales.quote.create", "Duplicate")
     updated = service.update_permission(p.id, name="Create sales quotes")

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.audit.service import AuditService
 from phoenix_core.configuration.service import ConfigurationService
+from phoenix_core.communications.service import CommunicationsService
 from phoenix_core.errors import AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError
 from phoenix_core.identity.domain import Identity
 from phoenix_core.infrastructure import SQLiteDatabase
@@ -24,12 +25,18 @@ def _dt(value):
     return value.isoformat()
 
 class CoreFoundationService:
-    def __init__(self, db: SQLiteDatabase):
+    def __init__(self, db: SQLiteDatabase, *, realtime_publisher=None):
         self.db = db
         self.audit_service = AuditService(db)
         self.module_service = ModuleService(db)
         self.entitlement_service = EntitlementService(db)
         self.configuration_service = ConfigurationService(db)
+        self.communications_service = CommunicationsService(
+            db,
+            authorize=self.authorize,
+            audit_record=self.audit_service.record,
+            realtime_publisher=realtime_publisher,
+        )
 
     def initialise(self):
         schema = open(
@@ -37,11 +44,19 @@ class CoreFoundationService:
             encoding="utf-8",
         ).read()
         self.db.executescript(schema)
+
         configuration_schema = open(
             __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "002_core_configuration.sql",
             encoding="utf-8",
         ).read()
         self.db.executescript(configuration_schema)
+
+        communications_schema = open(
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "003_core_communications.sql",
+            encoding="utf-8",
+        ).read()
+        self.db.executescript(communications_schema)
+
         self.db.commit()
 
     def create_organisation(self, code: str, name: str) -> Organisation:
