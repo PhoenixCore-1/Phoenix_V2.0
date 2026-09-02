@@ -26,3 +26,12 @@ class Organisation:
         if not name:
             raise ValidationError("Organisation name is required.")
         return cls(uuid4(), code, name, "ACTIVE", utcnow())
+
+    def with_status(self, status: str) -> "Organisation":
+        if status not in {"ACTIVE", "SUSPENDED", "CLOSED"}:
+            raise ValidationError("Invalid organisation status.")
+        if self.status == "CLOSED" and status != "CLOSED":
+            raise ValidationError("A closed organisation cannot be reactivated.")
+        if self.status == status:
+            return self
+        return Organisation(self.id, self.code, self.name, status, self.created_at)

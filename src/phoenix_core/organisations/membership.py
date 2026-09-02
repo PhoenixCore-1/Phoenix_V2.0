@@ -22,3 +22,10 @@ class Membership:
         if not identity_id or not organisation_id:
             raise ValidationError("Identity and organisation are required.")
         return cls(uuid4(), identity_id, organisation_id, "ACTIVE", utcnow())
+
+    def with_status(self, status: str) -> "Membership":
+        if status not in {"ACTIVE", "SUSPENDED", "REMOVED"}:
+            raise ValidationError("Invalid membership status.")
+        if self.status == "REMOVED" and status != "REMOVED":
+            raise ValidationError("A removed membership cannot be restored; create a new membership instead.")
+        return Membership(self.id, self.identity_id, self.organisation_id, status, self.created_at)

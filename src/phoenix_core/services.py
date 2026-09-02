@@ -128,13 +128,125 @@ class CoreFoundationService:
             self.db.execute("UPDATE sessions SET status='REVOKED' WHERE identity_id=? AND status='ACTIVE'", (str(current.identity_id),))
         self.db.commit()
 
+    def get_organisation(self, organisation_id: UUID) -> Organisation:
+        row = self.db.execute(
+            "SELECT id,code,name,status,created_at FROM organisations WHERE id=?",
+            (str(organisation_id),),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("Organisation not found.")
+        from datetime import datetime
+        return Organisation(
+            UUID(row["id"]), row["code"], row["name"], row["status"],
+            datetime.fromisoformat(row["created_at"]),
+        )
+
+    def update_organisation(self, organisation_id: UUID, *, code: str | None = None, name: str | None = None) -> Organisation:
+        current = self.get_organisation(organisation_id)
+        new_code = current.code if code is None else code.strip().upper()
+        new_name = current.name if name is None else name.strip()
+        if not new_code:
+            raise ValidationError("Organisation code is required.")
+        if not new_name:
+            raise ValidationError("Organisation name is required.")
+        try:
+            self.db.execute(
+                "UPDATE organisations SET code=?,name=? WHERE id=?",
+                (new_code, new_name, str(organisation_id)),
+            )
+            self.db.commit()
+        except Exception as exc:
+            self.db.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise ConflictError("Organisation code or name already exists.") from exc
+            raise
+        return self.get_organisation(organisation_id)
+
+    def _set_organisation_status(self, organisation_id: UUID, status: str) -> Organisation:
+        current = self.get_organisation(organisation_id)
+        updated = current.with_status(status)
+        if updated.status == current.status:
+            return current
+        self.db.execute("UPDATE organisations SET status=? WHERE id=?", (updated.status, str(organisation_id)))
+        if updated.status in {"SUSPENDED", "CLOSED"}:
+            self.db.execute(
+                "UPDATE organisation_memberships SET status='SUSPENDED' WHERE organisation_id=? AND status='ACTIVE'",
+                (str(organisation_id),),
+            )
+        self.db.commit()
+        return updated
+
+    def suspend_organisation(self, organisation_id: UUID) -> Organisation:
+        return self._set_organisation_status(organisation_id, "SUSPENDED")
+
+    def activate_organisation(self, organisation_id: UUID) -> Organisation:
+        return self._set_organisation_status(organisation_id, "ACTIVE")
+
+    def close_organisation(self, organisation_id: UUID) -> Organisation:
+        return self._set_organisation_status(organisation_id, "CLOSED")
+
+    def get_membership(self, membership_id: UUID) -> Membership:
+        row = self.db.execute(
+            "SELECT id,identity_id,organisation_id,status,created_at FROM organisation_memberships WHERE id=?",
+            (str(membership_id),),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("Membership not found.")
+        from datetime import datetime
+        return Membership(
+            UUID(row["id"]), UUID(row["identity_id"]), UUID(row["organisation_id"]),
+            row["status"], datetime.fromisoformat(row["created_at"]),
+        )
+
+    def list_memberships(self, organisation_id: UUID, *, status: str | None = None) -> list[Membership]:
+        self.get_organisation(organisation_id)
+        sql = "SELECT id,identity_id,organisation_id,status,created_at FROM organisation_memberships WHERE organisation_id=?"
+        params: list[str] = [str(organisation_id)]
+        if status is not None:
+            if status not in {"ACTIVE", "SUSPENDED", "REMOVED"}:
+                raise ValidationError("Invalid membership status.")
+            sql += " AND status=?"
+            params.append(status)
+        sql += " ORDER BY created_at, id"
+        rows = self.db.execute(sql, params).fetchall()
+        from datetime import datetime
+        return [Membership(UUID(r["id"]), UUID(r["identity_id"]), UUID(r["organisation_id"]), r["status"], datetime.fromisoformat(r["created_at"])) for r in rows]
+
+    def set_membership_status(self, membership_id: UUID, status: str) -> Membership:
+        current = self.get_membership(membership_id)
+        updated = current.with_status(status)
+        if updated.status == current.status:
+            return current
+        if status == "ACTIVE":
+            org = self.get_organisation(current.organisation_id)
+            if org.status != "ACTIVE":
+                raise AuthorizationError("Membership cannot be activated while the organisation is not active.")
+            identity = self.db.execute("SELECT status FROM identities WHERE id=?", (str(current.identity_id),)).fetchone()
+            if not identity or identity["status"] != "ACTIVE":
+                raise AuthorizationError("Membership cannot be activated for an inactive identity.")
+        self.db.execute("UPDATE organisation_memberships SET status=? WHERE id=?", (status, str(membership_id)))
+        self.db.commit()
+        return updated
+
+    def suspend_membership(self, membership_id: UUID) -> Membership:
+        return self.set_membership_status(membership_id, "SUSPENDED")
+
+    def remove_membership(self, membership_id: UUID) -> Membership:
+        return self.set_membership_status(membership_id, "REMOVED")
+
+    def restore_membership(self, membership_id: UUID) -> Membership:
+        return self.set_membership_status(membership_id, "ACTIVE")
+
     def add_membership(self, identity_id: UUID, organisation_id: UUID) -> Membership:
         membership = Membership.create(identity_id, organisation_id)
         try:
             if not self.db.execute("SELECT 1 FROM identities WHERE id=?", (str(identity_id),)).fetchone():
                 raise NotFoundError("Identity not found.")
-            if not self.db.execute("SELECT 1 FROM organisations WHERE id=?", (str(organisation_id),)).fetchone():
+            org_row = self.db.execute("SELECT status FROM organisations WHERE id=?", (str(organisation_id),)).fetchone()
+            if not org_row:
                 raise NotFoundError("Organisation not found.")
+            if org_row["status"] != "ACTIVE":
+                raise AuthorizationError("Membership can only be added to an active organisation.")
             self.db.execute(
                 "INSERT INTO organisation_memberships(id,identity_id,organisation_id,status,created_at) VALUES (?,?,?,?,?)",
                 (str(membership.id), str(identity_id), str(organisation_id), membership.status, _dt(membership.created_at)),
@@ -227,12 +339,13 @@ class CoreFoundationService:
             """
             SELECT DISTINCT p.code
             FROM organisation_memberships m
+            JOIN organisations o ON o.id = m.organisation_id
             JOIN role_assignments ra ON ra.membership_id = m.id
             JOIN roles r ON r.id = ra.role_id
             JOIN role_permissions rp ON rp.role_id = r.id
             JOIN permissions p ON p.id = rp.permission_id
             WHERE m.identity_id=? AND m.organisation_id=?
-              AND m.status='ACTIVE' AND r.status='ACTIVE'
+              AND m.status='ACTIVE' AND o.status='ACTIVE' AND r.status='ACTIVE'
             """,
             (str(identity_id), str(organisation_id)),
         ).fetchall()
