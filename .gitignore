@@ -51,3 +51,6 @@ dist/
 
 # Backups
 backups/
+
+# Build/package artifacts
+*.zip
