@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.audit.service import AuditService
+from phoenix_core.configuration.service import ConfigurationService
 from phoenix_core.errors import AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError
 from phoenix_core.identity.domain import Identity
 from phoenix_core.infrastructure import SQLiteDatabase
@@ -28,6 +29,7 @@ class CoreFoundationService:
         self.audit_service = AuditService(db)
         self.module_service = ModuleService(db)
         self.entitlement_service = EntitlementService(db)
+        self.configuration_service = ConfigurationService(db)
 
     def initialise(self):
         schema = open(
@@ -35,6 +37,11 @@ class CoreFoundationService:
             encoding="utf-8",
         ).read()
         self.db.executescript(schema)
+        configuration_schema = open(
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "002_core_configuration.sql",
+            encoding="utf-8",
+        ).read()
+        self.db.executescript(configuration_schema)
         self.db.commit()
 
     def create_organisation(self, code: str, name: str) -> Organisation:
@@ -630,6 +637,30 @@ class CoreFoundationService:
             return False
 
         return self.authorize(identity_id, organisation_id, permission)
+    def create_setting(self, key, value, value_type="STRING", *, organisation_id=None, description=None):
+        return self.configuration_service.create_setting(key, value, value_type, organisation_id=organisation_id, description=description)
+
+    def get_setting(self, key, *, organisation_id=None, required=True):
+        return self.configuration_service.get_setting(key, organisation_id=organisation_id, required=required)
+
+    def get_effective_setting(self, key, *, organisation_id=None, required=True):
+        return self.configuration_service.get_effective_setting(key, organisation_id=organisation_id, required=required)
+
+    def list_settings(self, *, organisation_id=None, include_global=False):
+        return self.configuration_service.list_settings(organisation_id=organisation_id, include_global=include_global)
+
+    def create_feature_flag(self, key, enabled=False, *, organisation_id=None, description=None):
+        return self.configuration_service.create_feature_flag(key, enabled, organisation_id=organisation_id, description=description)
+
+    def set_feature_flag(self, key, enabled, *, organisation_id=None):
+        return self.configuration_service.set_feature_flag(key, enabled, organisation_id=organisation_id)
+
+    def get_feature_flag(self, key, *, organisation_id=None, required=True):
+        return self.configuration_service.get_feature_flag(key, organisation_id=organisation_id, required=required)
+
+    def is_feature_enabled(self, key, *, organisation_id=None):
+        return self.configuration_service.is_feature_enabled(key, organisation_id=organisation_id)
+
     def record_audit(self, event: AuditEvent):
         """Compatibility facade for the authoritative Core audit service."""
         return self.audit_service.record(event)
