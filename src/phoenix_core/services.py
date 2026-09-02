@@ -1,10 +1,11 @@
-﻿"""First Phoenix Core V2 application-service layer."""
+"""First Phoenix Core V2 application-service layer."""
 
 import hashlib
 import secrets
 from uuid import UUID, uuid4
 
 from phoenix_core.audit.domain import AuditEvent
+from phoenix_core.audit.service import AuditService
 from phoenix_core.errors import AuthenticationError, AuthorizationError, ConflictError, NotFoundError, ValidationError
 from phoenix_core.identity.domain import Identity
 from phoenix_core.infrastructure import SQLiteDatabase
@@ -24,6 +25,7 @@ def _dt(value):
 class CoreFoundationService:
     def __init__(self, db: SQLiteDatabase):
         self.db = db
+        self.audit_service = AuditService(db)
         self.module_service = ModuleService(db)
         self.entitlement_service = EntitlementService(db)
 
@@ -629,25 +631,31 @@ class CoreFoundationService:
 
         return self.authorize(identity_id, organisation_id, permission)
     def record_audit(self, event: AuditEvent):
-        self.db.execute(
-            """
-            INSERT INTO audit_events
-            (id,organisation_id,identity_id,action,target_type,target_id,request_id,created_at)
-            VALUES (?,?,?,?,?,?,?,?)
-            """,
-            (
-                str(event.id),
-                str(event.organisation_id) if event.organisation_id else None,
-                str(event.identity_id) if event.identity_id else None,
-                event.action,
-                event.target_type,
-                str(event.target_id) if event.target_id else None,
-                event.request_id,
-                _dt(event.created_at),
-            ),
+        """Compatibility facade for the authoritative Core audit service."""
+        return self.audit_service.record(event)
+
+    def get_audit_event(self, event_id: UUID):
+        return self.audit_service.get(event_id)
+
+    def list_audit_events(
+        self,
+        *,
+        organisation_id: UUID | None = None,
+        identity_id: UUID | None = None,
+        action: str | None = None,
+        target_type: str | None = None,
+        target_id: UUID | None = None,
+        request_id: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ):
+        return self.audit_service.list(
+            organisation_id=organisation_id,
+            identity_id=identity_id,
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            request_id=request_id,
+            limit=limit,
+            offset=offset,
         )
-        self.db.commit()
-
-
-
-
