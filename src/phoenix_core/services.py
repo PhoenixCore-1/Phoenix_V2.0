@@ -10,6 +10,7 @@ from phoenix_core.identity.domain import Identity
 from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.organisations.domain import Organisation
 from phoenix_core.organisations.membership import Membership
+from phoenix_core.permissions.domain import Permission
 from phoenix_core.roles.domain import Role
 from phoenix_core.security.passwords import hash_password, verify_password
 from phoenix_core.sessions.domain import Session
@@ -261,8 +262,8 @@ class CoreFoundationService:
             raise
         return membership
 
-    def create_role(self, organisation_id: UUID, code: str, name: str) -> Role:
-        role = Role.create(organisation_id, code, name)
+    def create_role(self, organisation_id: UUID, code: str, name: str, scope: str = "ORGANISATION") -> Role:
+        role = Role.create(organisation_id, code, name, scope)
         if not self.db.execute("SELECT 1 FROM organisations WHERE id=?", (str(organisation_id),)).fetchone():
             raise NotFoundError("Organisation not found.")
         try:
@@ -306,6 +307,183 @@ class CoreFoundationService:
                 raise ConflictError("Role is already assigned.") from exc
             raise
         return assignment_id
+
+    def get_role(self, role_id: UUID) -> Role:
+        row = self.db.execute(
+            "SELECT id,organisation_id,code,name,scope,status,created_at FROM roles WHERE id=?",
+            (str(role_id),),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("Role not found.")
+        from datetime import datetime
+        return Role(UUID(row["id"]), UUID(row["organisation_id"]), row["code"], row["name"],
+                    row["scope"], row["status"], datetime.fromisoformat(row["created_at"]))
+
+    def list_roles(self, organisation_id: UUID, *, status: str | None = None) -> list[Role]:
+        self.get_organisation(organisation_id)
+        sql = "SELECT id,organisation_id,code,name,scope,status,created_at FROM roles WHERE organisation_id=?"
+        params: list[str] = [str(organisation_id)]
+        if status is not None:
+            if status not in {"ACTIVE", "DISABLED"}:
+                raise ValidationError("Invalid role status.")
+            sql += " AND status=?"
+            params.append(status)
+        sql += " ORDER BY code"
+        rows = self.db.execute(sql, params).fetchall()
+        from datetime import datetime
+        return [Role(UUID(r["id"]), UUID(r["organisation_id"]), r["code"], r["name"], r["scope"],
+                     r["status"], datetime.fromisoformat(r["created_at"])) for r in rows]
+
+    def update_role(self, role_id: UUID, *, code: str | None = None, name: str | None = None) -> Role:
+        current = self.get_role(role_id)
+        updated = current.with_details(code=code, name=name)
+        try:
+            self.db.execute("UPDATE roles SET code=?,name=? WHERE id=?",
+                            (updated.code, updated.name, str(role_id)))
+            self.db.commit()
+        except Exception as exc:
+            self.db.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise ConflictError("Role code already exists for this organisation.") from exc
+            raise
+        return updated
+
+    def set_role_status(self, role_id: UUID, status: str) -> Role:
+        current = self.get_role(role_id)
+        updated = current.with_status(status)
+        if updated.status == current.status:
+            return current
+        self.db.execute("UPDATE roles SET status=? WHERE id=?", (updated.status, str(role_id)))
+        self.db.commit()
+        return updated
+
+    def disable_role(self, role_id: UUID) -> Role:
+        return self.set_role_status(role_id, "DISABLED")
+
+    def enable_role(self, role_id: UUID) -> Role:
+        return self.set_role_status(role_id, "ACTIVE")
+
+    def create_permission(self, code: str, name: str) -> Permission:
+        permission = Permission.create(code, name)
+        try:
+            self.db.execute(
+                "INSERT INTO permissions(id,code,name,created_at) VALUES (?,?,?,?)",
+                (str(permission.id), permission.code, permission.name, _dt(permission.created_at)),
+            )
+            self.db.commit()
+        except Exception as exc:
+            self.db.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise ConflictError("Permission code already exists.") from exc
+            raise
+        return permission
+
+    def get_permission(self, permission_id: UUID) -> Permission:
+        row = self.db.execute(
+            "SELECT id,code,name,created_at FROM permissions WHERE id=?",
+            (str(permission_id),),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("Permission not found.")
+        from datetime import datetime
+        return Permission(UUID(row["id"]), row["code"], row["name"], datetime.fromisoformat(row["created_at"]))
+
+    def get_permission_by_code(self, code: str) -> Permission:
+        code = code.strip().lower()
+        row = self.db.execute(
+            "SELECT id,code,name,created_at FROM permissions WHERE code=?",
+            (code,),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("Permission not found.")
+        from datetime import datetime
+        return Permission(UUID(row["id"]), row["code"], row["name"], datetime.fromisoformat(row["created_at"]))
+
+    def list_permissions(self) -> list[Permission]:
+        rows = self.db.execute(
+            "SELECT id,code,name,created_at FROM permissions ORDER BY code"
+        ).fetchall()
+        from datetime import datetime
+        return [Permission(UUID(r["id"]), r["code"], r["name"], datetime.fromisoformat(r["created_at"])) for r in rows]
+
+    def update_permission(self, permission_id: UUID, *, code: str | None = None, name: str | None = None) -> Permission:
+        current = self.get_permission(permission_id)
+        updated = current.with_details(code=code, name=name)
+        try:
+            self.db.execute("UPDATE permissions SET code=?,name=? WHERE id=?",
+                            (updated.code, updated.name, str(permission_id)))
+            self.db.commit()
+        except Exception as exc:
+            self.db.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise ConflictError("Permission code already exists.") from exc
+            raise
+        return updated
+
+    def grant_permission(self, role_id: UUID, permission_id: UUID) -> None:
+        role = self.get_role(role_id)
+        permission = self.get_permission(permission_id)
+        if role.status != "ACTIVE":
+            raise AuthorizationError("Permissions can only be assigned to an active role.")
+        try:
+            self.db.execute(
+                "INSERT INTO role_permissions(role_id,permission_id,created_at) VALUES (?,?,datetime('now'))",
+                (str(role.id), str(permission.id)),
+            )
+            self.db.commit()
+        except Exception as exc:
+            self.db.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise ConflictError("Permission is already granted to this role.") from exc
+            raise
+
+    def revoke_permission(self, role_id: UUID, permission_id: UUID) -> bool:
+        self.get_role(role_id)
+        self.get_permission(permission_id)
+        cur = self.db.execute(
+            "DELETE FROM role_permissions WHERE role_id=? AND permission_id=?",
+            (str(role_id), str(permission_id)),
+        )
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def list_role_permissions(self, role_id: UUID) -> list[Permission]:
+        self.get_role(role_id)
+        rows = self.db.execute(
+            """
+            SELECT p.id,p.code,p.name,p.created_at
+            FROM role_permissions rp
+            JOIN permissions p ON p.id=rp.permission_id
+            WHERE rp.role_id=?
+            ORDER BY p.code
+            """,
+            (str(role_id),),
+        ).fetchall()
+        from datetime import datetime
+        return [Permission(UUID(r["id"]), r["code"], r["name"], datetime.fromisoformat(r["created_at"])) for r in rows]
+
+    def list_role_assignments(self, role_id: UUID):
+        self.get_role(role_id)
+        rows = self.db.execute(
+            """
+            SELECT ra.id,ra.membership_id,ra.role_id,ra.created_at
+            FROM role_assignments ra
+            WHERE ra.role_id=?
+            ORDER BY ra.created_at,ra.id
+            """,
+            (str(role_id),),
+        ).fetchall()
+        return rows
+
+    def remove_role(self, membership_id: UUID, role_id: UUID) -> bool:
+        self.get_role(role_id)
+        self.get_membership(membership_id)
+        cur = self.db.execute(
+            "DELETE FROM role_assignments WHERE membership_id=? AND role_id=?",
+            (str(membership_id), str(role_id)),
+        )
+        self.db.commit()
+        return cur.rowcount == 1
 
     def authenticate(self, username: str, password: str, lifetime_minutes: int = 60):
         row = self.db.execute(
