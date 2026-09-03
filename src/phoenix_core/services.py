@@ -57,6 +57,12 @@ class CoreFoundationService:
         ).read()
         self.db.executescript(communications_schema)
 
+        documents_schema = open(
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "004_core_documents.sql",
+            encoding="utf-8",
+        ).read()
+        self.db.executescript(documents_schema)
+
         self.db.commit()
 
     def create_organisation(self, code: str, name: str) -> Organisation:
