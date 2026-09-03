@@ -1,4 +1,4 @@
-"""First Phoenix Core V2 application-service layer."""
+﻿"""First Phoenix Core V2 application-service layer."""
 
 import hashlib
 import secrets
@@ -62,6 +62,12 @@ class CoreFoundationService:
             encoding="utf-8",
         ).read()
         self.db.executescript(documents_schema)
+
+        jobs_schema = open(
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "005_core_jobs.sql",
+            encoding="utf-8",
+        ).read()
+        self.db.executescript(jobs_schema)
 
         self.db.commit()
 
@@ -726,3 +732,4 @@ class CoreFoundationService:
             limit=limit,
             offset=offset,
         )
+
