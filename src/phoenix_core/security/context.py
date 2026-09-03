@@ -9,6 +9,7 @@ class RequestContext:
     request_id: str
     identity_id: Optional[UUID] = None
     organisation_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
     permissions: FrozenSet[str] = frozenset()
     entitlements: FrozenSet[str] = frozenset()
 

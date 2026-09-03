@@ -77,3 +77,20 @@ def test_password_change_enforces_minimum(tmp_path):
             user.id, "CorrectPassword123!", "short"
         )
     db.close()
+
+
+def test_organisation_scoped_authentication_returns_identity_session(tmp_path):
+    db, service = make_service(tmp_path)
+    user, org, _ = setup_user(service, "orgscope")
+
+    session, token = AuthenticationService(db).authenticate(
+        user.username,
+        "CorrectPassword123!",
+        org.id,
+    )
+
+    assert session.identity_id == user.identity_id
+    assert session.status == "ACTIVE"
+    assert token
+
+    db.close()

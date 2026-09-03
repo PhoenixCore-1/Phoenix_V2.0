@@ -115,6 +115,21 @@ class CoreFoundationService:
             row["password_hash"], row["status"], datetime.fromisoformat(row["created_at"]),
         )
 
+    def get_user_by_identity(self, identity_id: UUID) -> User:
+        row = self.db.execute(
+            "SELECT id,identity_id,username,display_name,password_hash,status,created_at "
+            "FROM users WHERE identity_id=?",
+            (str(identity_id),),
+        ).fetchone()
+        if not row:
+            raise NotFoundError("User not found.")
+        from datetime import datetime
+        return User(
+            UUID(row["id"]), UUID(row["identity_id"]), row["username"],
+            row["display_name"], row["password_hash"], row["status"],
+            datetime.fromisoformat(row["created_at"]),
+        )
+
     def get_identity(self, identity_id: UUID) -> Identity:
         row = self.db.execute(
             "SELECT id,identity_type,status,created_at FROM identities WHERE id=?",
