@@ -69,6 +69,12 @@ class CoreFoundationService:
         ).read()
         self.db.executescript(jobs_schema)
 
+        legal_policy_schema = open(
+            __import__("pathlib").Path(__file__).resolve().parents[2] / "migrations" / "006_core_legal_policy_acceptance.sql",
+            encoding="utf-8",
+        ).read()
+        self.db.executescript(legal_policy_schema)
+
         self.db.commit()
 
     def create_organisation(self, code: str, name: str) -> Organisation:
@@ -732,4 +738,5 @@ class CoreFoundationService:
             limit=limit,
             offset=offset,
         )
+
 
