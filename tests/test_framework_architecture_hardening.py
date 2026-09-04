@@ -139,3 +139,40 @@ def test_framework_package_has_expected_boundaries():
 def test_framework_has_single_package_authority():
     assert (FRAMEWORK_ROOT / "__init__.py").is_file()
     assert FRAMEWORK_ROOT.name == "phoenix_framework"
+
+
+def test_framework_integration_uses_contract_boundaries():
+    """
+    Generic Framework integration must remain contract-driven.
+
+    The Framework may provide integration infrastructure, but it must not
+    import concrete business-module implementations.
+    """
+
+    forbidden = (
+        "from phoenix_crm",
+        "from phoenix_sales",
+        "from phoenix_production",
+        "from phoenix_inventory",
+        "from phoenix_procurement",
+        "from phoenix_accounts",
+        "from phoenix_projects",
+        "import phoenix_crm",
+        "import phoenix_sales",
+        "import phoenix_production",
+        "import phoenix_inventory",
+        "import phoenix_procurement",
+        "import phoenix_accounts",
+        "import phoenix_projects",
+    )
+
+    integration_root = FRAMEWORK_ROOT / "integration"
+
+    for path in all_python_files(integration_root):
+        text = read_python(path)
+
+        for marker in forbidden:
+            assert marker not in text, (
+                f"Framework integration bypasses contract boundary "
+                f"with business-module dependency '{marker}': {path}"
+            )
