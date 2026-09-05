@@ -1,3 +1,4 @@
+import pytest
 from uuid import uuid4
 
 from phoenix_framework.context import FrameworkContext
@@ -20,10 +21,14 @@ def _context():
     )
 
 
-def _runtime(handler):
+def _runtime(handler, *, target_permissions=()):
     modules = ModuleRegistry()
     modules.register(ModuleContract(code="sales", name="Sales", version="1.0.0", lifecycle=ModuleLifecycle.ENABLED))
-    modules.register(ModuleContract(code="crm", name="CRM", version="1.0.0", lifecycle=ModuleLifecycle.ENABLED))
+    modules.register(ModuleContract(
+        code="crm", name="CRM", version="1.0.0",
+        lifecycle=ModuleLifecycle.ENABLED,
+        required_permissions=tuple(target_permissions),
+    ))
     integrations = IntegrationRegistry()
     integrations.register("crm", "crm.customer.v1", handler)
     return ModuleInvocationRuntime(ModuleInvocationService(modules, integrations))
@@ -49,14 +54,8 @@ def test_runtime_invokes_published_capability():
 
 
 def test_runtime_normalizes_boundary_failure():
-    runtime = _runtime(lambda **kwargs: {"ok": True})
-    request = ModuleInvocationRequest(
-        request_id="req-runtime",
-        source_module="sales",
-        target_module="crm",
-        contract="crm.customer.v1",
-        operation="get_customer",
-        context=_context(),
-        payload={"customer_id": "customer-1"},
-    )
-    runtime._service.module_registry.get("crm").required_permissions = ("crm.admin",)
+    runtime = _runtime(lambda **kwargs: {"ok": True}, target_permissions=("crm.admin",))
+    response = runtime.invoke_safe(_request())
+    assert response.success is False
+    assert response.request_id == "req-runtime"
+    assert response.error == "Required permission is missing: crm.admin"
