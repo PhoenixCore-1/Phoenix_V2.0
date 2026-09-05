@@ -4,11 +4,11 @@ from phoenix_framework.navigation.registry import NavigationRegistry
 from phoenix_framework.registration import ModuleRegistrationBundle, register_module
 
 
-def bundle(code="sales", version="1.0.0"):
+def bundle(code="sales", version="1.0.0", navigation_key=None):
     module = ModuleContract(code=code, name=code.title(), version=version)
     integration = ModuleIntegrationContract(module_code=code, version=version)
     navigation = NavigationContract(
-        key=f"{code}.workspace",
+        key=navigation_key or f"{code}.workspace",
         label=code.title(),
         route=f"/modules/{code}",
         module_code=code,
@@ -62,3 +62,46 @@ def test_registration_rejects_duplicate_module_without_mutation():
 
     assert len(modules.list()) == 1
     assert len(navigation.list()) == 1
+
+
+def test_registration_rejects_duplicate_navigation_without_mutation():
+    modules = ModuleRegistry()
+    navigation = NavigationRegistry()
+    register_module(bundle("inventory"), modules, navigation)
+
+    try:
+        register_module(bundle("sales", navigation_key="inventory.workspace"), modules, navigation)
+        assert False, "expected duplicate navigation"
+    except ValueError as exc:
+        assert "Navigation already registered" in str(exc)
+
+    assert modules.has("inventory")
+    assert not modules.has("sales")
+    assert len(navigation.list()) == 1
+
+
+def test_registration_rejects_navigation_owned_by_another_module():
+    modules = ModuleRegistry()
+    navigation = NavigationRegistry()
+    value = bundle("sales")
+    foreign_navigation = NavigationContract(
+        key="sales.workspace.foreign",
+        label="Foreign",
+        route="/modules/foreign",
+        module_code="inventory",
+        entitlement="inventory",
+    )
+    bad = ModuleRegistrationBundle(
+        module=value.module,
+        integration=value.integration,
+        navigation=(foreign_navigation,),
+    )
+
+    try:
+        register_module(bad, modules, navigation)
+        assert False, "expected navigation ownership mismatch"
+    except ValueError as exc:
+        assert "belongs to a different module" in str(exc)
+
+    assert not modules.has("sales")
+    assert not navigation.has("sales.workspace.foreign")
