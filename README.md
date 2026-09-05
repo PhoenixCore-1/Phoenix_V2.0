@@ -20,12 +20,21 @@ Phoenix Core owns platform-wide foundational capabilities including:
 - Permissions
 - Sessions
 - Security
+- **Organisation structure and access scope** (regions, territories, teams, assignments and ownership)
 - Module registry
 - Technical entitlements
 - Audit infrastructure
 - Core APIs and contracts
 
 Business modules own their own business-domain data and rules.
+
+### Organisation & Access Scope
+
+Phoenix Core provides the platform-wide organizational visibility model used by business modules. Core may define organisation units such as regions, territories and teams, assign users/subjects to those units, and resolve access scope for assigned resources such as customer/account records.
+
+Modules must consume Core's resolved authorization/access scope rather than implementing independent customer visibility rules. Core authorization remains server-side and tenant-scoped.
+
+The model supports primary and secondary assignments, hierarchical units, explicit resource assignments, and future assignment history. Business modules remain responsible for their own domain actions and business rules after Core establishes what resources the caller may access.
 
 ## Core Rules
 
