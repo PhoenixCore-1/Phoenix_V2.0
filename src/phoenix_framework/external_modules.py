@@ -6,6 +6,7 @@ from typing import Mapping, Sequence
 
 from phoenix_framework.contracts import (
     ModuleContract,
+    ModuleDependency,
     ModuleIntegrationContract,
     NavigationContract,
 )
@@ -31,6 +32,29 @@ def _metadata(value: object, field_name: str) -> dict[str, str]:
     if not isinstance(value, Mapping):
         raise ValueError(f"{field_name} must be a mapping")
     return {str(key): str(item) for key, item in value.items()}
+
+
+def _dependencies(value: object) -> tuple[ModuleDependency, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, (str, bytes)) or not isinstance(value, Sequence):
+        raise ValueError("dependencies must be a sequence")
+
+    dependencies: list[ModuleDependency] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            raise ValueError("dependency entries must be mappings")
+        dependencies.append(
+            ModuleDependency(
+                module_code=str(item.get("module_code", "")).strip(),
+                minimum_version=str(item.get("minimum_version", "")).strip(),
+                maximum_version=str(item.get("maximum_version", "")).strip(),
+                required=bool(item.get("required", True)),
+                capabilities=_strings(item.get("capabilities"), "dependency.capabilities"),
+                metadata=_metadata(item.get("metadata"), "dependency.metadata"),
+            )
+        )
+    return tuple(dependencies)
 
 
 def bundle_from_manifest(manifest: Mapping[str, object]) -> ModuleRegistrationBundle:
@@ -63,6 +87,7 @@ def bundle_from_manifest(manifest: Mapping[str, object]) -> ModuleRegistrationBu
         provided_contracts=_strings(integration_data.get("provided_contracts"), "provided_contracts"),
         provided_capabilities=_strings(integration_data.get("provided_capabilities"), "provided_capabilities"),
         provided_events=_strings(integration_data.get("provided_events"), "provided_events"),
+        dependencies=_dependencies(integration_data.get("dependencies")),
         metadata=_metadata(integration_data.get("metadata"), "integration.metadata"),
     )
 
