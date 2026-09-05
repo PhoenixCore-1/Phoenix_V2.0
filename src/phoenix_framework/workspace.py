@@ -8,7 +8,8 @@ from typing import List, Tuple
 from phoenix_framework.capabilities.discovery import discover_capabilities
 from phoenix_framework.capabilities.registry import CapabilityRegistry
 from phoenix_framework.context import FrameworkContext
-from phoenix_framework.contracts import ModuleContract, NavigationContract
+from phoenix_framework.contracts import ModuleContract, ModuleIntegrationContract, NavigationContract
+from phoenix_framework.dependencies import validate_dependencies
 from phoenix_framework.discovery import discover_modules, discover_navigation
 from phoenix_framework.modules.registry import ModuleRegistry
 from phoenix_framework.navigation.registry import NavigationRegistry
@@ -28,9 +29,19 @@ def discover_module_workspaces(
     navigation_registry: NavigationRegistry,
     capability_registry: CapabilityRegistry,
     context: FrameworkContext,
+    integration_contracts: Tuple[ModuleIntegrationContract, ...] = (),
 ) -> List[ModuleWorkspace]:
     """Build authorized module workspace projections from Framework registries."""
-    modules = discover_modules(module_registry, context)
+    if integration_contracts:
+        issues = validate_dependencies(integration_contracts)
+        blocked = {issue.module_code for issue in issues if issue.reason != "missing optional module"}
+    else:
+        blocked = set()
+
+    modules = [
+        module for module in discover_modules(module_registry, context)
+        if module.code not in blocked
+    ]
     navigation = discover_navigation(navigation_registry, context)
     capabilities = discover_capabilities(capability_registry, context)
 
