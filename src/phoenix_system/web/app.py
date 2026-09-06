@@ -43,7 +43,7 @@ def create_app(auth_service: AuthenticationService | None = None) -> FastAPI:
     def login_page() -> str:
         return render_login()
 
-    @application.post("/login", response_class=HTMLResponse)
+    @application.post("/login", response_class=HTMLResponse, response_model=None)
     async def login(request: Request) -> HTMLResponse | RedirectResponse:
         body = (await request.body()).decode("utf-8")
         values = parse_qs(body)
@@ -74,21 +74,21 @@ def create_app(auth_service: AuthenticationService | None = None) -> FastAPI:
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response
 
-    @application.get("/", response_class=HTMLResponse)
+    @application.get("/", response_class=HTMLResponse, response_model=None)
     def landing(request: Request) -> HTMLResponse | RedirectResponse:
         user = _current_user(application, request)
         if user is None:
             return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
         return HTMLResponse(render_dashboard(application, user.display_name))
 
-    @application.get("/system", response_class=HTMLResponse)
+    @application.get("/system", response_class=HTMLResponse, response_model=None)
     def system_page(request: Request) -> HTMLResponse | RedirectResponse:
         user = _current_user(application, request)
         if user is None:
             return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
         return HTMLResponse(render_system_page(application, user.display_name, user.role))
 
-    @application.get("/modules/{module_code}", response_class=HTMLResponse)
+    @application.get("/modules/{module_code}", response_class=HTMLResponse, response_model=None)
     def module_entry(module_code: str, request: Request) -> HTMLResponse | RedirectResponse:
         user = _current_user(application, request)
         if user is None:
@@ -203,4 +203,6 @@ aside{{background:var(--navy2);padding:24px 14px}}.label{{padding:0 12px 9px;col
 </style></head><body><div class="shell"><header><a class="brand" href="/" aria-label="Phoenix home"><img src="{PHOENIX_LOGO_URL}" alt="Phoenix"><span class="brand-copy"><span class="brand-name">Phoenix</span><span class="brand-sub">Core Platform</span></span></a><div class="context">Core V2.0 · Company Workspace</div></header><aside><div class="label">Workspace</div>{nav}<div class="label" style="margin-top:24px">Administration</div><a class="{"active" if active == "System" else ""}" href="/system">System</a><form method="post" action="/logout" style="margin-top:22px"><button type="submit" style="width:100%;padding:10px 12px;border:1px solid #315274;border-radius:7px;background:transparent;color:#dbe4ed;text-align:left;font:inherit;cursor:pointer">Sign out</button></form></aside><main>{body}</main></div></body></html>"""
 
 
-app = create_app()
+def create_production_app() -> FastAPI:
+    """Create the production application using configured Core credentials."""
+    return create_app()
