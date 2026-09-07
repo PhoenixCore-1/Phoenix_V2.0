@@ -1,9 +1,8 @@
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
 
-from phoenix_core.errors import AuthorizationError, ConflictError, NotFoundError
+from phoenix_core.errors import AuthorizationError, ValidationError
 from phoenix_core.licensing.service import EntitlementService
 from phoenix_core.modules.account_360 import ACCOUNT_360_CODE, ACCOUNT_360_NAME, ACCOUNT_360_VERSION
 from phoenix_core.modules.account_360_licensing import Account360Licensing, Account360LicensingError
@@ -36,6 +35,7 @@ CREATE TABLE module_entitlements (
 
 def db():
     import sqlite3
+
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     connection.executescript(SCHEMA)
@@ -95,11 +95,11 @@ def test_suspended_entitlement_blocks_access():
 
 
 def test_revoked_entitlement_cannot_be_reactivated():
-    connection, module_service, entitlement_service, module, organisation_id = setup()
+    connection, _, entitlement_service, module, organisation_id = setup()
     entitlement = entitlement_service.grant(organisation_id, module.id)
     entitlement_service.revoke(entitlement.id)
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         entitlement_service.activate(entitlement.id)
     connection.close()
 
@@ -117,11 +117,14 @@ def test_missing_registration_fails_closed():
     connection.close()
 
 
-def test_inactive_organisation_is_not_available():
-    connection, module_service, entitlement_service, module, organisation_id = setup()
-    connection.execute("UPDATE organisations SET status='SUSPENDED' WHERE id=?", (str(organisation_id),))
+def test_inactive_organisation_cannot_receive_entitlement():
+    connection, _, entitlement_service, module, organisation_id = setup()
+    connection.execute(
+        "UPDATE organisations SET status='SUSPENDED' WHERE id=?",
+        (str(organisation_id),),
+    )
     connection.commit()
-    entitlement_service.grant
+
     with pytest.raises(AuthorizationError):
         entitlement_service.grant(organisation_id, module.id)
     connection.close()
