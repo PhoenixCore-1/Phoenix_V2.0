@@ -26,6 +26,7 @@ from phoenix_framework.company_platform.visibility_admin import CompanyVisibilit
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
 from phoenix_framework.company_platform.workspaces_admin import CompanyWorkspaceAction, CompanyWorkspaceAdministrationExecutor, CompanyWorkspaceAdministrationOperationService, CompanyWorkspaceAdministrationRequest, CompanyWorkspaceAdministrationResult
 from phoenix_framework.company_platform.workspace_assignments import CompanyWorkspaceAssignmentAction, CompanyWorkspaceAssignmentExecutor, CompanyWorkspaceAssignmentRequest, CompanyWorkspaceAssignmentResult, CompanyWorkspaceAssignmentService
+from phoenix_framework.company_platform.workflow_admin import CompanyWorkflowAction, CompanyWorkflowAdministrationExecutor, CompanyWorkflowAdministrationRequest, CompanyWorkflowAdministrationResult, CompanyWorkflowAdministrationService
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityAuditAction", "CompanyActivityAuditAdministrationExecutor", "CompanyActivityAuditAdministrationRequest", "CompanyActivityAuditAdministrationResult", "CompanyActivityAuditAdministrationService", "CompanyActivityItem", "CompanyActivityView",
@@ -42,4 +43,5 @@ __all__ = [
     "CompanyVisibilityAction", "CompanyVisibilityAdministrationExecutor", "CompanyVisibilityAdministrationRequest", "CompanyVisibilityAdministrationResult", "CompanyVisibilityAdministrationService", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
     "CompanyWorkspaceAction", "CompanyWorkspaceAdministrationExecutor", "CompanyWorkspaceAdministrationOperationService", "CompanyWorkspaceAdministrationRequest", "CompanyWorkspaceAdministrationResult", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView",
     "CompanyWorkspaceAssignmentAction", "CompanyWorkspaceAssignmentExecutor", "CompanyWorkspaceAssignmentRequest", "CompanyWorkspaceAssignmentResult", "CompanyWorkspaceAssignmentService", "WorkspaceView",
+    "CompanyWorkflowAction", "CompanyWorkflowAdministrationExecutor", "CompanyWorkflowAdministrationRequest", "CompanyWorkflowAdministrationResult", "CompanyWorkflowAdministrationService",
 ]
