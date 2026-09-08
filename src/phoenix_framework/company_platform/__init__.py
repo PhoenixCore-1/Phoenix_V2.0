@@ -10,11 +10,19 @@ from phoenix_framework.company_platform.contracts import (
     CompanyPlatformContract,
 )
 from phoenix_framework.company_platform.context import CompanyPlatformContext
+from phoenix_framework.company_platform.dashboard import (
+    CompanyDashboardService,
+    CompanyDashboardSnapshot,
+    CompanyDashboardView,
+)
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION",
     "CompanyAdministrationService",
     "CompanyAdministrationView",
+    "CompanyDashboardService",
+    "CompanyDashboardSnapshot",
+    "CompanyDashboardView",
     "CompanyPlatformCapabilities",
     "CompanyPlatformContract",
     "CompanyPlatformContext",
