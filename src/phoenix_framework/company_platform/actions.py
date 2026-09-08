@@ -38,17 +38,9 @@ class CompanyUserAdministrationRequest:
     parameters: tuple[tuple[str, str], ...] = ()
 
     @classmethod
-    def create(
-        cls,
-        context: CompanyPlatformContext,
-        *,
-        action: CompanyUserAction,
-        identity_id: UUID | None = None,
-        role_id: UUID | None = None,
-        parameters: Mapping[str, str] | None = None,
-    ) -> "CompanyUserAdministrationRequest":
+    def create(cls, context: CompanyPlatformContext, *, action: CompanyUserAction, identity_id: UUID | None = None, role_id: UUID | None = None, parameters: Mapping[str, str] | None = None) -> "CompanyUserAdministrationRequest":
         context.require_access()
-        return cls(context.organisation_id, context.organisation_id, identity_id, role_id, tuple(sorted((parameters or {}).items())))
+        return cls(action, context.organisation_id, identity_id, role_id, tuple(sorted((parameters or {}).items())))
 
     def validate_for(self, context: CompanyPlatformContext) -> None:
         context.require_access()
@@ -56,6 +48,19 @@ class CompanyUserAdministrationRequest:
             raise PermissionError("User administration request does not match request organisation")
         if self.action in {CompanyUserAction.ASSIGN_ROLE, CompanyUserAction.REMOVE_ROLE} and self.role_id is None:
             raise ValueError("Role operations require a role_id")
+        if self.action != CompanyUserAction.INVITE and self.identity_id is None:
+            raise ValueError("This user operation requires an identity_id")
+
+
+@dataclass(frozen=True)
+class CompanyAdministrationResult:
+    """Immutable result envelope returned by the authoritative executor."""
+
+    action: CompanyAdministrationAction | CompanyUserAction
+    organisation_id: UUID
+    target_id: UUID | None
+    success: bool
+    message: str = ""
 
 
 class CompanyUserAdministrationExecutor(Protocol):
@@ -82,17 +87,6 @@ class CompanyAdministrationRequest:
         context.require_access()
         if self.organisation_id != context.organisation_id:
             raise PermissionError("Administration request does not match request organisation")
-
-
-@dataclass(frozen=True)
-class CompanyAdministrationResult:
-    """Immutable result envelope returned by the authoritative executor."""
-
-    action: CompanyAdministrationAction
-    organisation_id: UUID
-    target_id: UUID | None
-    success: bool
-    message: str = ""
 
 
 class CompanyAdministrationExecutor(Protocol):
