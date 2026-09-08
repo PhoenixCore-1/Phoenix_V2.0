@@ -1,5 +1,10 @@
 """Phoenix Company Platform V1.0 framework boundary."""
 
+from phoenix_framework.company_platform.activity import (
+    CompanyActivityAdministrationService,
+    CompanyActivityItem,
+    CompanyActivityView,
+)
 from phoenix_framework.company_platform.administration import (
     CompanyAdministrationService,
     CompanyAdministrationView,
@@ -39,6 +44,9 @@ from phoenix_framework.company_platform.workspaces import (
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION",
+    "CompanyActivityAdministrationService",
+    "CompanyActivityItem",
+    "CompanyActivityView",
     "CompanyAdministrationService",
     "CompanyAdministrationView",
     "CompanyDashboardService",
