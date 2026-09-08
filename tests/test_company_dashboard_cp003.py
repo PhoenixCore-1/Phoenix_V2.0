@@ -2,25 +2,26 @@ from uuid import uuid4
 
 import pytest
 
-from phoenix_core.security.context import RequestContext
 from phoenix_framework.company_platform.context import CompanyPlatformContext
 from phoenix_framework.company_platform.dashboard import (
     CompanyDashboardService,
     CompanyDashboardSnapshot,
 )
-from phoenix_framework.contracts import CompanyContext, FrameworkContext, ModuleDescriptor
+from phoenix_framework.context import FrameworkContext
+from phoenix_framework.contracts import CompanyContext, ModuleDescriptor
 
 
 def make_context(organisation_id):
-    request = RequestContext(
-        request_id=uuid4(),
-        identity_id=uuid4(),
-        organisation_id=organisation_id,
-        session_id=uuid4(),
-        permissions=frozenset(),
-        entitlements=frozenset(),
+    return CompanyPlatformContext(
+        FrameworkContext(
+            request_id="cp003-test",
+            identity_id=uuid4(),
+            organisation_id=organisation_id,
+            session_id=uuid4(),
+            permissions=frozenset(),
+            entitlements=frozenset(),
+        )
     )
-    return CompanyPlatformContext(FrameworkContext.from_core(request))
 
 
 def test_dashboard_projects_authoritative_company_and_snapshot():
@@ -59,18 +60,19 @@ def test_dashboard_rejects_cross_tenant_company():
 
 def test_dashboard_requires_authenticated_tenant_context():
     organisation_id = uuid4()
-    request = RequestContext(
-        request_id=uuid4(),
-        identity_id=None,
-        organisation_id=organisation_id,
-        session_id=None,
-        permissions=frozenset(),
-        entitlements=frozenset(),
+    context = CompanyPlatformContext(
+        FrameworkContext(
+            request_id="cp003-test",
+            identity_id=None,
+            organisation_id=organisation_id,
+            session_id=None,
+            permissions=frozenset(),
+            entitlements=frozenset(),
+        )
     )
-    context = CompanyPlatformContext(FrameworkContext.from_core(request))
     company = CompanyContext(organisation_id=organisation_id, name="Acme")
 
-    with pytest.raises(PermissionError):
+    with pytest.raises(PermissionError, match="Authenticated identity is required"):
         CompanyDashboardService.get_dashboard_view(
             context, company, CompanyDashboardSnapshot()
         )
