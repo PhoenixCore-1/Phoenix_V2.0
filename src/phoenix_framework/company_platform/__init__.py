@@ -1,5 +1,6 @@
 """Phoenix Company Platform V1.0 framework boundary."""
 
+from phoenix_framework.company_platform.access import CompanyAccessService, CompanyCapabilityAccess
 from phoenix_framework.company_platform.activity import CompanyActivityAdministrationService, CompanyActivityItem, CompanyActivityView
 from phoenix_framework.company_platform.administration import CompanyAdministrationService, CompanyAdministrationView
 from phoenix_framework.company_platform.audit import CompanyAuditItem, CompanyAuditService, CompanyAuditView
@@ -16,13 +17,11 @@ from phoenix_framework.company_platform.visibility import DataVisibilityAdminist
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
 
 __all__ = [
-    "COMPANY_PLATFORM_NAVIGATION", "CompanyActivityAdministrationService", "CompanyActivityItem", "CompanyActivityView",
-    "CompanyAdministrationAction", "CompanyAdministrationExecutor", "CompanyAdministrationRequest", "CompanyAdministrationResult",
-    "CompanyAdministrationService", "CompanyAdministrationView", "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView",
-    "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView", "CompanyNavigationService", "CompanyNavigationView",
-    "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView", "CompanyPlatformCapabilities",
-    "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
-    "CompanyReportingView", "CompanyRoleView", "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAdministrationService",
-    "CompanyUserView", "CompanyUsersView", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
-    "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
+    "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityItem", "CompanyActivityView",
+    "CompanyAdministrationAction", "CompanyAdministrationExecutor", "CompanyAdministrationRequest", "CompanyAdministrationResult", "CompanyAdministrationService", "CompanyAdministrationView",
+    "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView", "CompanyCapabilityAccess", "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView",
+    "CompanyNavigationService", "CompanyNavigationView", "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView",
+    "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
+    "CompanyReportingView", "CompanyRoleView", "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView",
+    "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
 ]
