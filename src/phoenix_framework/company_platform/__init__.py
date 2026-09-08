@@ -12,6 +12,7 @@ from phoenix_framework.company_platform.dashboard import CompanyDashboardService
 from phoenix_framework.company_platform.navigation import CompanyNavigationService, CompanyNavigationView
 from phoenix_framework.company_platform.notifications import CompanyNotificationItem, CompanyNotificationsService, CompanyNotificationsView
 from phoenix_framework.company_platform.reporting import CompanyReportDefinitionView, CompanyReportResultView, CompanyReportingService, CompanyReportingView
+from phoenix_framework.company_platform.reporting_admin import CompanyReportingAction, CompanyReportingAdministrationExecutor, CompanyReportingAdministrationRequest, CompanyReportingAdministrationResult, CompanyReportingAdministrationService
 from phoenix_framework.company_platform.roles import CompanyPermissionView, CompanyRoleView, CompanyRolesPermissionsService, CompanyRolesPermissionsView
 from phoenix_framework.company_platform.roles_admin import CompanyRoleAction, CompanyRoleAdministrationExecutor, CompanyRoleAdministrationRequest, CompanyRoleAdministrationService
 from phoenix_framework.company_platform.users import CompanyUserAdministrationService, CompanyUserView, CompanyUsersView
@@ -28,6 +29,7 @@ __all__ = [
     "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView", "CompanyCapabilityAccess", "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView",
     "CompanyNavigationService", "CompanyNavigationView", "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView",
     "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService", "CompanyReportingView",
+    "CompanyReportingAction", "CompanyReportingAdministrationExecutor", "CompanyReportingAdministrationRequest", "CompanyReportingAdministrationResult", "CompanyReportingAdministrationService",
     "CompanyRoleAction", "CompanyRoleAdministrationExecutor", "CompanyRoleAdministrationRequest", "CompanyRoleAdministrationService", "CompanyRoleView", "CompanyRolesPermissionsService", "CompanyRolesPermissionsView",
     "CompanyUserAction", "CompanyUserAdministrationExecutor", "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest", "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView",
     "CompanyUserVisibilityAction", "CompanyUserVisibilityAdministrationExecutor", "CompanyUserVisibilityAdministrationRequest", "CompanyUserVisibilityAdministrationResult", "CompanyUserVisibilityAdministrationService",
