@@ -14,6 +14,7 @@ from phoenix_framework.company_platform.reporting import CompanyReportDefinition
 from phoenix_framework.company_platform.roles import CompanyPermissionView, CompanyRoleView, CompanyRolesPermissionsService, CompanyRolesPermissionsView
 from phoenix_framework.company_platform.roles_admin import CompanyRoleAction, CompanyRoleAdministrationExecutor, CompanyRoleAdministrationRequest, CompanyRoleAdministrationService
 from phoenix_framework.company_platform.users import CompanyUserAdministrationService, CompanyUserView, CompanyUsersView
+from phoenix_framework.company_platform.user_visibility import CompanyUserVisibilityAction, CompanyUserVisibilityAdministrationExecutor, CompanyUserVisibilityAdministrationRequest, CompanyUserVisibilityAdministrationResult, CompanyUserVisibilityAdministrationService
 from phoenix_framework.company_platform.visibility import DataVisibilityAdministrationService, DataVisibilityRuleView, DataVisibilityView
 from phoenix_framework.company_platform.visibility_admin import CompanyVisibilityAction, CompanyVisibilityAdministrationExecutor, CompanyVisibilityAdministrationRequest, CompanyVisibilityAdministrationResult, CompanyVisibilityAdministrationService
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
@@ -28,9 +29,9 @@ __all__ = [
     "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
     "CompanyReportingView", "CompanyRoleAction", "CompanyRoleAdministrationExecutor", "CompanyRoleAdministrationRequest", "CompanyRoleAdministrationService", "CompanyRoleView",
     "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAction", "CompanyUserAdministrationExecutor", "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest",
-    "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "CompanyVisibilityAction", "CompanyVisibilityAdministrationExecutor", "CompanyVisibilityAdministrationRequest",
+    "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "CompanyUserVisibilityAction", "CompanyUserVisibilityAdministrationExecutor", "CompanyUserVisibilityAdministrationRequest",
+    "CompanyUserVisibilityAdministrationResult", "CompanyUserVisibilityAdministrationService", "CompanyVisibilityAction", "CompanyVisibilityAdministrationExecutor", "CompanyVisibilityAdministrationRequest",
     "CompanyVisibilityAdministrationResult", "CompanyVisibilityAdministrationService", "CompanyWorkspaceAction", "CompanyWorkspaceAdministrationExecutor", "CompanyWorkspaceAdministrationOperationService",
     "CompanyWorkspaceAdministrationRequest", "CompanyWorkspaceAdministrationResult", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "CompanyWorkspaceAssignmentAction", "CompanyWorkspaceAssignmentExecutor",
-    "CompanyWorkspaceAssignmentRequest", "CompanyWorkspaceAssignmentResult", "CompanyWorkspaceAssignmentService", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
-    "WorkspaceView",
+    "CompanyWorkspaceAssignmentRequest", "CompanyWorkspaceAssignmentResult", "CompanyWorkspaceAssignmentService", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView", "WorkspaceView",
 ]
