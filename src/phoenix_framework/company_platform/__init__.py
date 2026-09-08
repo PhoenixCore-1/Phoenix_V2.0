@@ -1,5 +1,9 @@
 """Phoenix Company Platform V1.0 framework boundary."""
 
+from phoenix_framework.company_platform.administration import (
+    CompanyAdministrationService,
+    CompanyAdministrationView,
+)
 from phoenix_framework.company_platform.contracts import (
     COMPANY_PLATFORM_NAVIGATION,
     CompanyPlatformCapabilities,
@@ -9,6 +13,8 @@ from phoenix_framework.company_platform.context import CompanyPlatformContext
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION",
+    "CompanyAdministrationService",
+    "CompanyAdministrationView",
     "CompanyPlatformCapabilities",
     "CompanyPlatformContract",
     "CompanyPlatformContext",
