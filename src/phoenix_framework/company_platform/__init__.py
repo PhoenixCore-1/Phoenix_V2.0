@@ -15,6 +15,7 @@ from phoenix_framework.company_platform.roles import CompanyPermissionView, Comp
 from phoenix_framework.company_platform.roles_admin import CompanyRoleAction, CompanyRoleAdministrationExecutor, CompanyRoleAdministrationRequest, CompanyRoleAdministrationService
 from phoenix_framework.company_platform.users import CompanyUserAdministrationService, CompanyUserView, CompanyUsersView
 from phoenix_framework.company_platform.visibility import DataVisibilityAdministrationService, DataVisibilityRuleView, DataVisibilityView
+from phoenix_framework.company_platform.visibility_admin import CompanyVisibilityAction, CompanyVisibilityAdministrationExecutor, CompanyVisibilityAdministrationRequest, CompanyVisibilityAdministrationResult, CompanyVisibilityAdministrationService
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
     "CompanyReportingView", "CompanyRoleAction", "CompanyRoleAdministrationExecutor", "CompanyRoleAdministrationRequest", "CompanyRoleAdministrationService", "CompanyRoleView",
     "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAction", "CompanyUserAdministrationExecutor", "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest",
-    "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
+    "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "CompanyVisibilityAction", "CompanyVisibilityAdministrationExecutor", "CompanyVisibilityAdministrationRequest",
+    "CompanyVisibilityAdministrationResult", "CompanyVisibilityAdministrationService", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
     "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
 ]
