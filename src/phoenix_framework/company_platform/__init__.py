@@ -20,6 +20,12 @@ from phoenix_framework.company_platform.dashboard import (
     CompanyDashboardSnapshot,
     CompanyDashboardView,
 )
+from phoenix_framework.company_platform.reporting import (
+    CompanyReportDefinitionView,
+    CompanyReportResultView,
+    CompanyReportingService,
+    CompanyReportingView,
+)
 from phoenix_framework.company_platform.roles import (
     CompanyPermissionView,
     CompanyRoleView,
@@ -56,6 +62,10 @@ __all__ = [
     "CompanyPlatformCapabilities",
     "CompanyPlatformContract",
     "CompanyPlatformContext",
+    "CompanyReportDefinitionView",
+    "CompanyReportResultView",
+    "CompanyReportingService",
+    "CompanyReportingView",
     "CompanyRoleView",
     "CompanyRolesPermissionsService",
     "CompanyRolesPermissionsView",
