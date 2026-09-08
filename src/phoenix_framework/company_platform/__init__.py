@@ -31,6 +31,11 @@ from phoenix_framework.company_platform.visibility import (
     DataVisibilityRuleView,
     DataVisibilityView,
 )
+from phoenix_framework.company_platform.workspaces import (
+    CompanyWorkspaceAdministrationService,
+    CompanyWorkspacesView,
+    WorkspaceView,
+)
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION",
@@ -52,4 +57,7 @@ __all__ = [
     "DataVisibilityAdministrationService",
     "DataVisibilityRuleView",
     "DataVisibilityView",
+    "CompanyWorkspaceAdministrationService",
+    "CompanyWorkspacesView",
+    "WorkspaceView",
 ]
