@@ -12,6 +12,7 @@ from phoenix_framework.company_platform.navigation import CompanyNavigationServi
 from phoenix_framework.company_platform.notifications import CompanyNotificationItem, CompanyNotificationsService, CompanyNotificationsView
 from phoenix_framework.company_platform.reporting import CompanyReportDefinitionView, CompanyReportResultView, CompanyReportingService, CompanyReportingView
 from phoenix_framework.company_platform.roles import CompanyPermissionView, CompanyRoleView, CompanyRolesPermissionsService, CompanyRolesPermissionsView
+from phoenix_framework.company_platform.roles_admin import CompanyRoleAction, CompanyRoleAdministrationExecutor, CompanyRoleAdministrationRequest, CompanyRoleAdministrationService
 from phoenix_framework.company_platform.users import CompanyUserAdministrationService, CompanyUserView, CompanyUsersView
 from phoenix_framework.company_platform.visibility import DataVisibilityAdministrationService, DataVisibilityRuleView, DataVisibilityView
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
@@ -22,7 +23,8 @@ __all__ = [
     "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView", "CompanyCapabilityAccess", "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView",
     "CompanyNavigationService", "CompanyNavigationView", "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView",
     "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
-    "CompanyReportingView", "CompanyRoleView", "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAction", "CompanyUserAdministrationExecutor",
-    "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest", "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "DataVisibilityAdministrationService",
-    "DataVisibilityRuleView", "DataVisibilityView", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
+    "CompanyReportingView", "CompanyRoleAction", "CompanyRoleAdministrationExecutor", "CompanyRoleAdministrationRequest", "CompanyRoleAdministrationService", "CompanyRoleView",
+    "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAction", "CompanyUserAdministrationExecutor", "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest",
+    "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
+    "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
 ]
