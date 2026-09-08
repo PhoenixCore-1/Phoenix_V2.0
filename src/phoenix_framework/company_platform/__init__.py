@@ -18,6 +18,7 @@ from phoenix_framework.company_platform.visibility import DataVisibilityAdminist
 from phoenix_framework.company_platform.visibility_admin import CompanyVisibilityAction, CompanyVisibilityAdministrationExecutor, CompanyVisibilityAdministrationRequest, CompanyVisibilityAdministrationResult, CompanyVisibilityAdministrationService
 from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdministrationService, CompanyWorkspacesView, WorkspaceView
 from phoenix_framework.company_platform.workspaces_admin import CompanyWorkspaceAction, CompanyWorkspaceAdministrationExecutor, CompanyWorkspaceAdministrationOperationService, CompanyWorkspaceAdministrationRequest, CompanyWorkspaceAdministrationResult
+from phoenix_framework.company_platform.workspace_assignments import CompanyWorkspaceAssignmentAction, CompanyWorkspaceAssignmentExecutor, CompanyWorkspaceAssignmentRequest, CompanyWorkspaceAssignmentResult, CompanyWorkspaceAssignmentService
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityItem", "CompanyActivityView",
@@ -29,6 +30,7 @@ __all__ = [
     "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAction", "CompanyUserAdministrationExecutor", "CompanyUserAdministrationOperationService", "CompanyUserAdministrationRequest",
     "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView", "CompanyVisibilityAction", "CompanyVisibilityAdministrationExecutor", "CompanyVisibilityAdministrationRequest",
     "CompanyVisibilityAdministrationResult", "CompanyVisibilityAdministrationService", "CompanyWorkspaceAction", "CompanyWorkspaceAdministrationExecutor", "CompanyWorkspaceAdministrationOperationService",
-    "CompanyWorkspaceAdministrationRequest", "CompanyWorkspaceAdministrationResult", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
+    "CompanyWorkspaceAdministrationRequest", "CompanyWorkspaceAdministrationResult", "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "CompanyWorkspaceAssignmentAction", "CompanyWorkspaceAssignmentExecutor",
+    "CompanyWorkspaceAssignmentRequest", "CompanyWorkspaceAssignmentResult", "CompanyWorkspaceAssignmentService", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
     "WorkspaceView",
 ]
