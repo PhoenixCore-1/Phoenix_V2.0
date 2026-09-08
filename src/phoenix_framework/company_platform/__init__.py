@@ -23,7 +23,7 @@ from phoenix_framework.company_platform.workspaces_admin import CompanyWorkspace
 from phoenix_framework.company_platform.workspace_assignments import CompanyWorkspaceAssignmentAction, CompanyWorkspaceAssignmentExecutor, CompanyWorkspaceAssignmentRequest, CompanyWorkspaceAssignmentResult, CompanyWorkspaceAssignmentService
 
 __all__ = [
-    "COMPANY_ACTIVITY_AUDIT", "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityAuditAction", "CompanyActivityAuditAdministrationExecutor", "CompanyActivityAuditAdministrationRequest", "CompanyActivityAuditAdministrationResult", "CompanyActivityAuditAdministrationService", "CompanyActivityItem", "CompanyActivityView",
+    "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityAuditAction", "CompanyActivityAuditAdministrationExecutor", "CompanyActivityAuditAdministrationRequest", "CompanyActivityAuditAdministrationResult", "CompanyActivityAuditAdministrationService", "CompanyActivityItem", "CompanyActivityView",
     "CompanyAdministrationAction", "CompanyAdministrationExecutor", "CompanyAdministrationRequest", "CompanyAdministrationResult", "CompanyAdministrationService", "CompanyAdministrationView",
     "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView", "CompanyCapabilityAccess", "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView",
     "CompanyNavigationService", "CompanyNavigationView", "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView",
