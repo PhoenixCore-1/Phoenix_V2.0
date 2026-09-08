@@ -6,6 +6,7 @@ from phoenix_framework.company_platform.audit import CompanyAuditItem, CompanyAu
 from phoenix_framework.company_platform.contracts import COMPANY_PLATFORM_NAVIGATION, CompanyPlatformCapabilities, CompanyPlatformContract
 from phoenix_framework.company_platform.context import CompanyPlatformContext
 from phoenix_framework.company_platform.dashboard import CompanyDashboardService, CompanyDashboardSnapshot, CompanyDashboardView
+from phoenix_framework.company_platform.notifications import CompanyNotificationItem, CompanyNotificationsService, CompanyNotificationsView
 from phoenix_framework.company_platform.reporting import CompanyReportDefinitionView, CompanyReportResultView, CompanyReportingService, CompanyReportingView
 from phoenix_framework.company_platform.roles import CompanyPermissionView, CompanyRoleView, CompanyRolesPermissionsService, CompanyRolesPermissionsView
 from phoenix_framework.company_platform.users import CompanyUserAdministrationService, CompanyUserView, CompanyUsersView
@@ -15,9 +16,10 @@ from phoenix_framework.company_platform.workspaces import CompanyWorkspaceAdmini
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION", "CompanyActivityAdministrationService", "CompanyActivityItem", "CompanyActivityView",
     "CompanyAdministrationService", "CompanyAdministrationView", "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView",
-    "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView", "CompanyPermissionView", "CompanyPlatformCapabilities",
-    "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService",
-    "CompanyReportingView", "CompanyRoleView", "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAdministrationService",
-    "CompanyUserView", "CompanyUsersView", "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView",
-    "CompanyWorkspaceAdministrationService", "CompanyWorkspacesView", "WorkspaceView",
+    "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView", "CompanyNotificationItem", "CompanyNotificationsService",
+    "CompanyNotificationsView", "CompanyPermissionView", "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext",
+    "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService", "CompanyReportingView", "CompanyRoleView",
+    "CompanyRolesPermissionsService", "CompanyRolesPermissionsView", "CompanyUserAdministrationService", "CompanyUserView", "CompanyUsersView",
+    "DataVisibilityAdministrationService", "DataVisibilityRuleView", "DataVisibilityView", "CompanyWorkspaceAdministrationService",
+    "CompanyWorkspacesView", "WorkspaceView",
 ]
