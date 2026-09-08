@@ -108,7 +108,7 @@ class CompanyAdministrationService:
         return executor.execute(context, request)
 
 
-class CompanyUserAdministrationService:
+class CompanyUserAdministrationOperationService:
     """Framework facade for controlled user operations."""
 
     @staticmethod
