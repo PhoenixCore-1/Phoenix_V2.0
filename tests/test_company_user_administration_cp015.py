@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from phoenix_core.security.context import RequestContext
-from phoenix_framework.company_platform.actions import CompanyAdministrationResult, CompanyUserAction, CompanyUserAdministrationRequest, CompanyUserAdministrationService
+from phoenix_framework.company_platform.actions import CompanyAdministrationResult, CompanyUserAction, CompanyUserAdministrationRequest, CompanyUserAdministrationOperationService
 from phoenix_framework.company_platform.context import CompanyPlatformContext
 
 
@@ -23,8 +23,7 @@ class RecordingExecutor:
 
 def test_build_request_is_tenant_bound_and_immutable():
     context = make_context()
-    identity_id = uuid4()
-    request = CompanyUserAdministrationService.build_request(context, action=CompanyUserAction.INVITE, parameters={"email": "user@example.com"})
+    request = CompanyUserAdministrationOperationService.build_request(context, action=CompanyUserAction.INVITE, parameters={"email": "user@example.com"})
     assert request.organisation_id == context.organisation_id
     assert request.identity_id is None
     assert request.parameters == (("email", "user@example.com"),)
@@ -35,20 +34,20 @@ def test_build_request_is_tenant_bound_and_immutable():
 def test_existing_user_operations_require_identity():
     context = make_context()
     with pytest.raises(ValueError):
-        CompanyUserAdministrationService.build_request(context, action=CompanyUserAction.ACTIVATE)
+        CompanyUserAdministrationOperationService.build_request(context, action=CompanyUserAction.ACTIVATE)
 
 
 def test_role_operations_require_role():
     context = make_context()
     with pytest.raises(ValueError):
-        CompanyUserAdministrationService.build_request(context, action=CompanyUserAction.ASSIGN_ROLE, identity_id=uuid4())
+        CompanyUserAdministrationOperationService.build_request(context, action=CompanyUserAction.ASSIGN_ROLE, identity_id=uuid4())
 
 
 def test_execute_delegates_to_authoritative_executor():
     context = make_context()
-    request = CompanyUserAdministrationService.build_request(context, action=CompanyUserAction.ACTIVATE, identity_id=uuid4())
+    request = CompanyUserAdministrationOperationService.build_request(context, action=CompanyUserAction.ACTIVATE, identity_id=uuid4())
     executor = RecordingExecutor()
-    result = CompanyUserAdministrationService.execute(context, request, executor)
+    result = CompanyUserAdministrationOperationService.execute(context, request, executor)
     assert result.success is True
     assert executor.calls == [(context, request)]
 
@@ -57,10 +56,10 @@ def test_cross_tenant_request_is_rejected():
     context = make_context()
     request = CompanyUserAdministrationRequest(CompanyUserAction.ACTIVATE, uuid4(), uuid4())
     with pytest.raises(PermissionError):
-        CompanyUserAdministrationService.execute(context, request, RecordingExecutor())
+        CompanyUserAdministrationOperationService.execute(context, request, RecordingExecutor())
 
 
 def test_unauthenticated_context_cannot_build_request():
     context = CompanyPlatformContext.from_core(RequestContext(uuid4()))
     with pytest.raises(PermissionError):
-        CompanyUserAdministrationService.build_request(context, action=CompanyUserAction.INVITE, parameters={"email": "user@example.com"})
+        CompanyUserAdministrationOperationService.build_request(context, action=CompanyUserAction.INVITE, parameters={"email": "user@example.com"})
