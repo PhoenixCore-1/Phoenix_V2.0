@@ -10,6 +10,7 @@ from phoenix_framework.company_platform.configuration_admin import CompanyConfig
 from phoenix_framework.company_platform.contracts import COMPANY_PLATFORM_NAVIGATION, CompanyPlatformCapabilities, CompanyPlatformContract
 from phoenix_framework.company_platform.context import CompanyPlatformContext
 from phoenix_framework.company_platform.dashboard import CompanyDashboardService, CompanyDashboardSnapshot, CompanyDashboardView
+from phoenix_framework.company_platform.document_admin import CompanyDocumentAction, CompanyDocumentAdministrationExecutor, CompanyDocumentAdministrationRequest, CompanyDocumentAdministrationResult, CompanyDocumentAdministrationService
 from phoenix_framework.company_platform.navigation import CompanyNavigationService, CompanyNavigationView
 from phoenix_framework.company_platform.notifications import CompanyNotificationItem, CompanyNotificationsService, CompanyNotificationsView
 from phoenix_framework.company_platform.notifications_admin import CompanyNotificationAction, CompanyNotificationAdministrationExecutor, CompanyNotificationAdministrationRequest, CompanyNotificationAdministrationResult, CompanyNotificationAdministrationService
@@ -29,6 +30,7 @@ __all__ = [
     "COMPANY_PLATFORM_NAVIGATION", "CompanyAccessService", "CompanyActivityAdministrationService", "CompanyActivityAuditAction", "CompanyActivityAuditAdministrationExecutor", "CompanyActivityAuditAdministrationRequest", "CompanyActivityAuditAdministrationResult", "CompanyActivityAuditAdministrationService", "CompanyActivityItem", "CompanyActivityView",
     "CompanyAdministrationAction", "CompanyAdministrationExecutor", "CompanyAdministrationRequest", "CompanyAdministrationResult", "CompanyAdministrationService", "CompanyAdministrationView",
     "CompanyAuditItem", "CompanyAuditService", "CompanyAuditView", "CompanyCapabilityAccess", "CompanyConfigurationAction", "CompanyConfigurationAdministrationExecutor", "CompanyConfigurationAdministrationRequest", "CompanyConfigurationAdministrationResult", "CompanyConfigurationAdministrationService", "CompanyDashboardService", "CompanyDashboardSnapshot", "CompanyDashboardView",
+    "CompanyDocumentAction", "CompanyDocumentAdministrationExecutor", "CompanyDocumentAdministrationRequest", "CompanyDocumentAdministrationResult", "CompanyDocumentAdministrationService",
     "CompanyNavigationService", "CompanyNavigationView", "CompanyNotificationAction", "CompanyNotificationAdministrationExecutor", "CompanyNotificationAdministrationRequest", "CompanyNotificationAdministrationResult", "CompanyNotificationAdministrationService", "CompanyNotificationItem", "CompanyNotificationsService", "CompanyNotificationsView", "CompanyPermissionView",
     "CompanyPlatformCapabilities", "CompanyPlatformContract", "CompanyPlatformContext", "CompanyReportDefinitionView", "CompanyReportResultView", "CompanyReportingService", "CompanyReportingView",
     "CompanyReportingAction", "CompanyReportingAdministrationExecutor", "CompanyReportingAdministrationRequest", "CompanyReportingAdministrationResult", "CompanyReportingAdministrationService",
