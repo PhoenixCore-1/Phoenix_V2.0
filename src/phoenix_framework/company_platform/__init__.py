@@ -26,6 +26,11 @@ from phoenix_framework.company_platform.users import (
     CompanyUserView,
     CompanyUsersView,
 )
+from phoenix_framework.company_platform.visibility import (
+    DataVisibilityAdministrationService,
+    DataVisibilityRuleView,
+    DataVisibilityView,
+)
 
 __all__ = [
     "COMPANY_PLATFORM_NAVIGATION",
@@ -44,4 +49,7 @@ __all__ = [
     "CompanyUserAdministrationService",
     "CompanyUserView",
     "CompanyUsersView",
+    "DataVisibilityAdministrationService",
+    "DataVisibilityRuleView",
+    "DataVisibilityView",
 ]
