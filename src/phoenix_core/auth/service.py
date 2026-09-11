@@ -56,6 +56,39 @@ class AuthenticationService:
         self.db.commit()
         return session, token
 
+    def resolve_active_organisation(self, identity_id: UUID) -> UUID:
+        """Resolve the user's active organisation context.
+
+        A user must have exactly one active organisation when no explicit
+        organisation has been selected. Ambiguous membership is rejected
+        rather than silently selecting an organisation.
+        """
+        rows = self.db.execute(
+            """
+            SELECT om.organisation_id
+            FROM organisation_memberships om
+            JOIN organisations o
+                ON o.id = om.organisation_id
+            WHERE om.identity_id=?
+              AND om.status='ACTIVE'
+              AND o.status='ACTIVE'
+            ORDER BY om.organisation_id
+            """,
+            (str(identity_id),),
+        ).fetchall()
+
+        if not rows:
+            raise AuthenticationError(
+                "User has no active organisation membership."
+            )
+
+        if len(rows) > 1:
+            raise AuthenticationError(
+                "Multiple active organisations require organisation selection."
+            )
+
+        return UUID(str(rows[0]["organisation_id"]))
+
     def change_password(self, user_id: UUID, current_password: str, new_password: str) -> None:
         if not new_password or len(new_password) < 12:
             raise ValidationError("Password must be at least 12 characters.")

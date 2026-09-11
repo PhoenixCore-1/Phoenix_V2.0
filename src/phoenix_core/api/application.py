@@ -58,10 +58,20 @@ class CoreApi:
             organisation_id,
         )
 
+        resolved_organisation_id = organisation_id
+
+        if resolved_organisation_id is None:
+            resolved_organisation_id = (
+                self.authentication_service.resolve_active_organisation(
+                    session.identity_id
+                )
+            )
+
         return ApiResponse(
             data={
                 "session_id": str(session.id),
                 "identity_id": str(session.identity_id),
+                "organisation_id": str(resolved_organisation_id),
                 "token": token,
                 "status": session.status,
                 "expires_at": session.expires_at.isoformat(),

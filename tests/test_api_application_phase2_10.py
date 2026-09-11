@@ -176,6 +176,27 @@ def test_api_authenticate_returns_session_token(tmp_path):
     db.close()
 
 
+
+def test_api_authenticate_resolves_single_active_organisation(tmp_path):
+    db, service = make_service(tmp_path)
+    user, org = setup_user(service)
+
+    api = CoreApi(db, service)
+
+    response = api.authenticate(
+        request_id="req-api-auth-org-001",
+        username=user.username,
+        password="CorrectPassword123!",
+    )
+
+    assert isinstance(response, ApiResponse)
+    assert response.data["identity_id"] == str(user.identity_id)
+    assert response.data["organisation_id"] == str(org.id)
+    assert response.data["status"] == "ACTIVE"
+
+    db.close()
+
+
 def test_api_authenticate_rejects_invalid_credentials(tmp_path):
     from phoenix_core.errors import AuthenticationError
 
