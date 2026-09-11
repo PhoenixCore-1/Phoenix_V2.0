@@ -2,6 +2,12 @@
 
 from phoenix_core.api.context import RequestContextResolver
 from phoenix_core.api.contracts import ApiResponse
+from phoenix_core.api.platform_destination import (
+    COMPANY_PLATFORM_ACCESS,
+    PlatformDestination,
+    PlatformDestinationResult,
+    SYSTEM_PLATFORM_ACCESS,
+)
 from phoenix_core.auth.service import AuthenticationService
 from phoenix_core.errors import AuthorizationError
 
@@ -78,6 +84,46 @@ class CoreApi:
             request_id=request_id,
         )
 
+    def resolve_platform_destination(
+        self,
+        *,
+        request_id: str,
+        session_id,
+        organisation_id=None,
+    ) -> ApiResponse:
+        """Resolve the landing platform from authoritative Core context."""
+        context = self.resolve_context(
+            request_id=request_id,
+            session_id=session_id,
+            organisation_id=organisation_id,
+        )
+
+        if context.has_permission(SYSTEM_PLATFORM_ACCESS):
+            destination = PlatformDestination.SYSTEM_PLATFORM
+        elif context.has_permission(COMPANY_PLATFORM_ACCESS):
+            destination = PlatformDestination.COMPANY_PLATFORM
+        else:
+            destination = PlatformDestination.USER_PLATFORM
+
+        result = PlatformDestinationResult(
+            destination=destination,
+            session_id=str(context.session_id),
+            organisation_id=str(context.organisation_id),
+            permissions=context.permissions,
+            entitlements=context.entitlements,
+        )
+
+        return ApiResponse(
+            data={
+                "destination": result.destination.value,
+                "session_id": result.session_id,
+                "organisation_id": result.organisation_id,
+                "permissions": sorted(result.permissions),
+                "entitlements": sorted(result.entitlements),
+            },
+            request_id=context.request_id,
+        )
+
     def get_current_identity(
         self,
         *,
@@ -101,6 +147,7 @@ class CoreApi:
             },
             request_id=context.request_id,
         )
+
     def get_current_organisation(
         self,
         *,
@@ -128,6 +175,7 @@ class CoreApi:
             },
             request_id=context.request_id,
         )
+
     def get_current_user(
         self,
         *,
