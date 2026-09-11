@@ -61,3 +61,22 @@ class CoreIntegrationService:
             success=True,
             data=response.data,
         )
+
+    def _handle_platform_destination_resolve(
+        self,
+        request: IntegrationRequest,
+    ) -> IntegrationResponse:
+        """Resolve the authenticated user's Phoenix landing platform in Core."""
+        self._require_authenticated_context(request)
+
+        response = self.api.resolve_platform_destination(
+            request_id=request.request_id,
+            session_id=request.session_id,
+            organisation_id=request.organisation_id,
+        )
+
+        return IntegrationResponse(
+            request_id=request.request_id,
+            success=True,
+            data=response.data,
+        )
