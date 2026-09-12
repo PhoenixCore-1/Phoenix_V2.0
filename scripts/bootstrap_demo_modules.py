@@ -13,7 +13,9 @@ Current demo configuration:
 The script is idempotent:
 - registers Production when it is missing;
 - enables it when it is registered but not yet enabled;
-- grants an ACTIVE organisation entitlement when it is missing.
+- grants an ACTIVE organisation entitlement when it is missing;
+- re-activates an existing SUSPENDED entitlement;
+- never silently re-activates a REVOKED entitlement.
 
 No production database is stored in the repository.
 """
@@ -22,9 +24,8 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -39,10 +40,6 @@ ORG_CODE = "PHOENIX-DEMO"
 MODULE_CODE = "production"
 MODULE_NAME = "Production"
 MODULE_VERSION = "1.0.0"
-
-
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 def main() -> int:
@@ -70,10 +67,7 @@ def main() -> int:
             print(f"Organisation {ORG_CODE!r} was not found.", file=sys.stderr)
             return 3
         if organisation["status"] != "ACTIVE":
-            print(
-                f"Organisation {ORG_CODE!r} is not ACTIVE.",
-                file=sys.stderr,
-            )
+            print(f"Organisation {ORG_CODE!r} is not ACTIVE.", file=sys.stderr)
             return 3
 
         try:
@@ -116,6 +110,7 @@ def main() -> int:
         ).fetchone()
 
         if entitlement:
+            entitlement_id = UUID(entitlement["id"])
             if entitlement["status"] == "REVOKED":
                 print(
                     "Production entitlement is REVOKED; it will not be silently recreated.",
@@ -123,13 +118,13 @@ def main() -> int:
                 )
                 return 5
             if entitlement["status"] == "SUSPENDED":
-                entitlement_service.activate(uuid4() if False else __import__("uuid").UUID(entitlement["id"]))
+                entitlement_service.activate(entitlement_id)
                 print("Activated existing Production entitlement.")
             else:
                 print("Production entitlement already ACTIVE.")
         else:
             entitlement_service.grant(
-                __import__("uuid").UUID(organisation["id"]),
+                UUID(organisation["id"]),
                 module.id,
             )
             print("Granted ACTIVE Production entitlement to Phoenix Demo Organisation.")
