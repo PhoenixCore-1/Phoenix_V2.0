@@ -9,6 +9,7 @@ from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.services import CoreFoundationService
 
 
+TEST_ORIGIN = "https://testserver"
 MANAGEMENT_PERMISSIONS = (
     "company.users.manage",
     "company.memberships.manage",
@@ -31,7 +32,11 @@ def build_client(tmp_path, *, admin=True):
             core.grant_permission(role.id, permission.id)
         core.assign_role(membership.id, role.id)
 
-    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation, core
+    return TestClient(create_app(CoreApi(db, core)), base_url=TEST_ORIGIN), organisation, core
+
+
+def browser_headers(**headers):
+    return {"Origin": TEST_ORIGIN, **headers}
 
 
 def login(client, organisation):
@@ -86,7 +91,7 @@ def test_company_admin_can_create_user_and_core_records_audit(tmp_path):
 
     response = client.post(
         "/api/v1/company/users",
-        headers=headers,
+        headers=browser_headers(**headers),
         json={
             "username": "new.user",
             "display_name": "New User",
@@ -113,7 +118,7 @@ def test_company_user_management_requires_server_side_permission(tmp_path):
 
     response = client.post(
         "/api/v1/company/users",
-        headers=headers,
+        headers=browser_headers(**headers),
         json={
             "username": "blocked.user",
             "display_name": "Blocked User",
@@ -134,14 +139,14 @@ def test_membership_mutations_are_tenant_scoped_and_audited(tmp_path):
 
     response = client.post(
         f"/api/v1/company/memberships/{membership.id}/suspend",
-        headers=headers,
+        headers=browser_headers(**headers),
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "SUSPENDED"
 
     response = client.post(
         f"/api/v1/company/memberships/{membership.id}/restore",
-        headers=headers,
+        headers=browser_headers(**headers),
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "ACTIVE"
@@ -157,7 +162,7 @@ def test_role_management_and_permission_assignment_are_audited(tmp_path):
 
     response = client.post(
         "/api/v1/company/roles",
-        headers=headers,
+        headers=browser_headers(**headers),
         json={"code": "sales_manager", "name": "Sales Manager"},
     )
     assert response.status_code == 200
@@ -166,14 +171,14 @@ def test_role_management_and_permission_assignment_are_audited(tmp_path):
     permission = core.create_permission("sales.quote.view", "View Sales Quotes")
     response = client.post(
         f"/api/v1/company/roles/{role_id}/permissions/{permission.id}",
-        headers=headers,
+        headers=browser_headers(**headers),
     )
     assert response.status_code == 200
     assert response.json()["data"]["granted"] is True
 
     response = client.post(
         f"/api/v1/company/roles/{role_id}/disable",
-        headers=headers,
+        headers=browser_headers(**headers),
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "DISABLED"
@@ -193,7 +198,7 @@ def test_company_cannot_mutate_role_from_another_organisation(tmp_path):
 
     response = client.post(
         f"/api/v1/company/roles/{foreign_role.id}/disable",
-        headers=headers,
+        headers=browser_headers(**headers),
     )
 
     assert response.status_code == 403
