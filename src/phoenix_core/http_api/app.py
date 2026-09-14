@@ -55,12 +55,21 @@ def _organisation_id(request: Request) -> UUID | None:
 
 
 def _validate_same_origin(request: Request) -> None:
-    """Reject cross-origin state-changing browser requests."""
+    """Apply the Core HTTP CSRF policy to state-changing browser requests.
+
+    Phoenix uses the secure session cookie for browser authentication. A browser
+    request carrying that cookie must include an Origin header and the origin
+    must exactly match the effective API origin. Requests without a Phoenix
+    session cookie may be used by non-browser/API clients and retain the
+    existing authentication boundary at the endpoint itself.
+    """
     if request.method not in _MUTATING_METHODS:
+        return
+    if SESSION_COOKIE not in request.cookies:
         return
     origin = request.headers.get("Origin")
     if not origin:
-        return
+        raise ValidationError("Origin header is required for authenticated state-changing requests.")
     parsed = urlparse(origin)
     host = request.headers.get("host")
     if not parsed.scheme or not parsed.netloc or not host:
