@@ -1,0 +1,158 @@
+"""FastAPI transport adapter for Phoenix Core.
+
+The adapter owns HTTP concerns only. Business authority remains in CoreApi
+and Core application services.
+"""
+
+from uuid import UUID, uuid4
+
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+
+from phoenix_core.api.application import CoreApi
+from phoenix_core.api.contracts import error_from_exception
+from phoenix_core.infrastructure import SQLiteDatabase
+from phoenix_core.services import CoreFoundationService
+
+SESSION_COOKIE = "phoenix_session"
+ORGANISATION_HEADER = "X-Phoenix-Organisation"
+REQUEST_ID_HEADER = "X-Request-ID"
+
+
+def _request_id(request: Request) -> str:
+    return request.headers.get(REQUEST_ID_HEADER) or str(uuid4())
+
+
+def _session_id(request: Request) -> UUID | None:
+    value = request.cookies.get(SESSION_COOKIE)
+    if not value:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+def _organisation_id(request: Request) -> UUID | None:
+    value = request.headers.get(ORGANISATION_HEADER)
+    if not value:
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+def create_app(core_api: CoreApi) -> FastAPI:
+    """Create the Phoenix Core HTTP API around an existing CoreApi."""
+    application = FastAPI(title="Phoenix Core API", version="1.0")
+    application.state.core_api = core_api
+
+    @application.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        request.state.request_id = _request_id(request)
+        response = await call_next(request)
+        response.headers[REQUEST_ID_HEADER] = request.state.request_id
+        return response
+
+    @application.exception_handler(Exception)
+    async def exception_handler(request: Request, exc: Exception):
+        api_error = error_from_exception(
+            exc,
+            request_id=getattr(request.state, "request_id", _request_id(request)),
+        )
+        status_code = {
+            "VALIDATION_ERROR": 422,
+            "NOT_FOUND": 404,
+            "CONFLICT": 409,
+            "AUTHENTICATION_ERROR": 401,
+            "AUTHORIZATION_ERROR": 403,
+            "CORE_ERROR": 500,
+            "INTERNAL_ERROR": 500,
+        }.get(api_error.code, 500)
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "code": api_error.code,
+                "message": api_error.message,
+                "request_id": api_error.request_id,
+            },
+        )
+
+    @application.get("/api/v1/health")
+    def health(request: Request):
+        return {"data": {"status": "ok", "service": "phoenix-core"}, "request_id": request.state.request_id}
+
+    @application.post("/api/v1/auth/login")
+    async def login(request: Request, response: Response):
+        payload = await request.json()
+        result = core_api.authenticate(
+            request_id=request.state.request_id,
+            username=str(payload.get("username", "")),
+            password=str(payload.get("password", "")),
+            organisation_id=UUID(payload["organisation_id"]) if payload.get("organisation_id") else None,
+        )
+        session_id = result.data["session_id"]
+        response.set_cookie(
+            SESSION_COOKIE,
+            session_id,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            path="/",
+        )
+        data = dict(result.data)
+        data.pop("token", None)
+        return {"data": data, "request_id": result.request_id}
+
+    @application.post("/api/v1/auth/logout")
+    def logout(request: Request, response: Response):
+        session_id = _session_id(request)
+        if session_id is None:
+            response.delete_cookie(SESSION_COOKIE, path="/")
+            return {"data": {"revoked": False}, "request_id": request.state.request_id}
+        session = request.cookies.get(SESSION_COOKIE)
+        result = core_api.revoke_session(
+            request_id=request.state.request_id,
+            token=session,
+        )
+        response.delete_cookie(SESSION_COOKIE, path="/")
+        return {"data": result.data, "request_id": result.request_id}
+
+    @application.get("/api/v1/me/identity")
+    def current_identity(request: Request):
+        session_id = _session_id(request)
+        result = core_api.get_current_identity(
+            request_id=request.state.request_id,
+            session_id=session_id,
+            organisation_id=_organisation_id(request),
+        )
+        return {"data": result.data, "request_id": result.request_id}
+
+    @application.get("/api/v1/me/organisation")
+    def current_organisation(request: Request):
+        result = core_api.get_current_organisation(
+            request_id=request.state.request_id,
+            session_id=_session_id(request),
+            organisation_id=_organisation_id(request),
+        )
+        return {"data": result.data, "request_id": result.request_id}
+
+    @application.get("/api/v1/me")
+    def current_user(request: Request):
+        result = core_api.get_current_user(
+            request_id=request.state.request_id,
+            session_id=_session_id(request),
+            organisation_id=_organisation_id(request),
+        )
+        return {"data": result.data, "request_id": result.request_id}
+
+    return application
+
+
+def create_development_app(database_path: str = "phoenix_core.db") -> FastAPI:
+    """Create a development API using the existing Core foundation."""
+    db = SQLiteDatabase(database_path)
+    core_service = CoreFoundationService(db)
+    api = CoreApi(db, core_service)
+    return create_app(api)
