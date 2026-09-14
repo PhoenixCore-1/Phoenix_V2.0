@@ -85,6 +85,7 @@ The existing Core authentication service and persistent session model remain aut
 
 | Method | Route | Purpose | State |
 |---|---|---|---|
+| GET | `/api/v1/company/users` | Company users with tenant membership status | IMPLEMENTED |
 | GET | `/api/v1/company/memberships` | Current company memberships | EXTEND |
 | GET | `/api/v1/company/roles` | Organisation roles | EXTEND |
 | GET | `/api/v1/company/permissions` | Available/effective company permissions | EXTEND |
