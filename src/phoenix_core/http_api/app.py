@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
+from phoenix_core.errors import AuthenticationError, ValidationError
 from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.services import CoreFoundationService
 
@@ -26,7 +27,7 @@ def _request_id(request: Request) -> str:
 def _session_id(request: Request, core_api: CoreApi) -> UUID:
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
-        raise ValueError("Authentication required.")
+        raise AuthenticationError("Authentication required.")
     return core_api.resolve_session_id(token)
 
 
@@ -34,7 +35,10 @@ def _organisation_id(request: Request) -> UUID | None:
     value = request.headers.get(ORGANISATION_HEADER)
     if not value:
         return None
-    return UUID(value)
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        raise ValidationError("Invalid organisation context.") from exc
 
 
 def create_app(core_api: CoreApi) -> FastAPI:
@@ -66,11 +70,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
         }.get(api_error.code, 500)
         return JSONResponse(
             status_code=status_code,
-            content={
-                "code": api_error.code,
-                "message": api_error.message,
-                "request_id": api_error.request_id,
-            },
+            content={"code": api_error.code, "message": api_error.message, "request_id": api_error.request_id},
         )
 
     @application.get("/api/v1/health")
@@ -80,7 +80,10 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.post("/api/v1/auth/login")
     async def login(request: Request, response: Response):
         payload = await request.json()
-        organisation_id = UUID(payload["organisation_id"]) if payload.get("organisation_id") else None
+        try:
+            organisation_id = UUID(payload["organisation_id"]) if payload.get("organisation_id") else None
+        except ValueError as exc:
+            raise ValidationError("Invalid organisation_id.") from exc
         result = core_api.authenticate(
             request_id=request.state.request_id,
             username=str(payload.get("username", "")),
@@ -105,10 +108,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
         if not token:
             response.delete_cookie(SESSION_COOKIE, path="/")
             return {"data": {"revoked": False}, "request_id": request.state.request_id}
-        result = core_api.revoke_session(
-            request_id=request.state.request_id,
-            token=token,
-        )
+        result = core_api.revoke_session(request_id=request.state.request_id, token=token)
         response.delete_cookie(SESSION_COOKIE, path="/")
         return {"data": result.data, "request_id": result.request_id}
 
