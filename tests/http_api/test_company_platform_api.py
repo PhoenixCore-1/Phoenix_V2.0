@@ -9,6 +9,7 @@ def test_company_platform_router_defines_expected_read_routes():
     paths = {route.path for route in router.routes}
 
     assert "/api/v1/company" in paths
+    assert "/api/v1/company/users" in paths
     assert "/api/v1/company/memberships" in paths
     assert "/api/v1/company/roles" in paths
     assert "/api/v1/company/permissions" in paths
