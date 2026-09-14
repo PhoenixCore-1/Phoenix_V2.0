@@ -5,10 +5,16 @@ from pathlib import Path
 
 SCHEMA = Path(__file__).resolve().parents[2] / "migrations" / "001_core_foundation.sql"
 
+
 class SQLiteDatabase:
     def __init__(self, path: str | Path):
         self.path = str(path)
-        self.connection = sqlite3.connect(self.path)
+        # FastAPI's TestClient executes request handling in a worker thread.
+        # Core owns a single SQLite connection for this lightweight V2
+        # infrastructure, so allow that connection to be used across the
+        # request boundary. Production deployments can move to a pooled
+        # connection strategy without changing the Core API contract.
+        self.connection = sqlite3.connect(self.path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
 
