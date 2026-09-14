@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
-from phoenix_core.errors import AuthenticationError, ValidationError
+from phoenix_core.errors import AuthenticationError, PhoenixError, ValidationError
 from phoenix_core.http_api.company import router as company_router
 from phoenix_core.http_api.compliance import router as compliance_router
 from phoenix_core.http_api.evidence import router as evidence_router
@@ -75,6 +75,29 @@ def _validate_same_origin(request: Request) -> None:
         raise ValidationError("Cross-origin state-changing requests are not allowed.")
 
 
+def _error_response(request: Request, exc: Exception) -> JSONResponse:
+    api_error = error_from_exception(
+        exc, request_id=getattr(request.state, "request_id", _request_id(request))
+    )
+    status_code = {
+        "VALIDATION_ERROR": 422,
+        "NOT_FOUND": 404,
+        "CONFLICT": 409,
+        "AUTHENTICATION_ERROR": 401,
+        "AUTHORIZATION_ERROR": 403,
+        "CORE_ERROR": 500,
+        "INTERNAL_ERROR": 500,
+    }.get(api_error.code, 500)
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "code": api_error.code,
+            "message": api_error.message,
+            "request_id": api_error.request_id,
+        },
+    )
+
+
 def create_app(core_api: CoreApi) -> FastAPI:
     """Create the Phoenix Core HTTP API around an existing CoreApi."""
     application = FastAPI(title="Phoenix Core API", version="1.0")
@@ -93,27 +116,17 @@ def create_app(core_api: CoreApi) -> FastAPI:
         request.state.request_id = _request_id(request)
         try:
             _validate_same_origin(request)
-        except ValidationError as exc:
-            api_error = error_from_exception(exc, request_id=request.state.request_id)
-            response = JSONResponse(
-                status_code=422,
-                content={
-                    "code": api_error.code,
-                    "message": api_error.message,
-                    "request_id": api_error.request_id,
-                },
-            )
-            response.headers[REQUEST_ID_HEADER] = request.state.request_id
-            return response
-        response = await call_next(request)
-        response.headers[REQUEST_ID_HEADER] = request.state.request_id
-        return response
+            return await call_next(request)
+        except PhoenixError as exc:
+            return _error_response(request, exc)
+
+    @application.exception_handler(PhoenixError)
+    async def phoenix_exception_handler(request: Request, exc: PhoenixError):
+        return _error_response(request, exc)
 
     @application.exception_handler(Exception)
     async def exception_handler(request: Request, exc: Exception):
-        api_error = error_from_exception(exc, request_id=getattr(request.state, "request_id", _request_id(request)))
-        status_code = {"VALIDATION_ERROR": 422, "NOT_FOUND": 404, "CONFLICT": 409, "AUTHENTICATION_ERROR": 401, "AUTHORIZATION_ERROR": 403, "CORE_ERROR": 500, "INTERNAL_ERROR": 500}.get(api_error.code, 500)
-        return JSONResponse(status_code=status_code, content={"code": api_error.code, "message": api_error.message, "request_id": api_error.request_id})
+        return _error_response(request, exc)
 
     @application.get("/api/v1/health")
     def health(request: Request):
