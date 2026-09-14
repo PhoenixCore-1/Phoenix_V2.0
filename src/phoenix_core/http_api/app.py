@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
-from phoenix_core.errors import AuthenticationError, PhoenixError, ValidationError
+from phoenix_core.errors import AuthenticationError, AuthorizationError, PhoenixError, ValidationError
 from phoenix_core.http_api.company import router as company_router
 from phoenix_core.http_api.compliance import router as compliance_router
 from phoenix_core.http_api.evidence import router as evidence_router
@@ -88,6 +88,22 @@ def _error_response(request: Request, exc: Exception) -> JSONResponse:
         "CORE_ERROR": 500,
         "INTERNAL_ERROR": 500,
     }.get(api_error.code, 500)
+
+    # Core's application/context layer deliberately uses AuthenticationError
+    # for an identity that is not a member of the requested organisation.
+    # At the HTTP boundary the identity is already authenticated, so exposing
+    # that cross-tenant attempt as an authorization failure is the correct
+    # transport contract without changing the framework-level Core semantics.
+    if (
+        isinstance(exc, AuthenticationError)
+        and str(exc) == "User is not an active member of this organisation."
+    ):
+        api_error = error_from_exception(
+            AuthorizationError("User is not authorised for this organisation."),
+            request_id=api_error.request_id,
+        )
+        status_code = 403
+
     return JSONResponse(
         status_code=status_code,
         content={
@@ -116,21 +132,38 @@ def create_app(core_api: CoreApi) -> FastAPI:
         request.state.request_id = _request_id(request)
         try:
             _validate_same_origin(request)
-            return await call_next(request)
+            response = await call_next(request)
         except PhoenixError as exc:
-            return _error_response(request, exc)
+            response = _error_response(request, exc)
+        response.headers[REQUEST_ID_HEADER] = request.state.request_id
+        return response
 
     @application.exception_handler(PhoenixError)
     async def phoenix_exception_handler(request: Request, exc: PhoenixError):
-        return _error_response(request, exc)
+        response = _error_response(request, exc)
+        response.headers[REQUEST_ID_HEADER] = getattr(
+            request.state, "request_id", _request_id(request)
+        )
+        return response
 
     @application.exception_handler(Exception)
     async def exception_handler(request: Request, exc: Exception):
-        return _error_response(request, exc)
+        response = _error_response(request, exc)
+        response.headers[REQUEST_ID_HEADER] = getattr(
+            request.state, "request_id", _request_id(request)
+        )
+        return response
 
     @application.get("/api/v1/health")
     def health(request: Request):
-        return {"data": {"status": "ok", "service": "phoenix-core"}, "request_id": request.state.request_id}
+        response = JSONResponse(
+            content={
+                "data": {"status": "ok", "service": "phoenix-core"},
+                "request_id": request.state.request_id,
+            }
+        )
+        response.headers[REQUEST_ID_HEADER] = request.state.request_id
+        return response
 
     @application.post("/api/v1/auth/login")
     async def login(request: Request, response: Response):
