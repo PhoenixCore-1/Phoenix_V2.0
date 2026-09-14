@@ -19,6 +19,7 @@ class CompanyPlatformApplicationService:
         self.core = core_api.core_service
 
     def list_workspaces(self, context) -> ApiResponse:
+        self.core_api.require_permission(context, "company.workspaces.manage")
         service = CompanyWorkspaceService(
             self.core.db, self.core.module_service, self.core.entitlement_service
         )
