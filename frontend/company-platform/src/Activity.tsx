@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 type ActivityItem = { id: string; identity_id: string | null; action: string; target_type: string | null; target_id: string | null; request_id: string | null; created_at: string }
 
 function label(value: string) {
-  return value.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())
 }
 
 export function Activity() {
