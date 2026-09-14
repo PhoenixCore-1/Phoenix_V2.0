@@ -1,11 +1,32 @@
 """HTTP transport for Phoenix platform destination resolution."""
 
+from uuid import UUID
+
 from fastapi import APIRouter, Request
 
-from phoenix_core.http_api.app import ORGANISATION_HEADER, _organisation_id, _session_id
+from phoenix_core.errors import AuthenticationError, ValidationError
+from phoenix_core.http_api.app import SESSION_COOKIE
 from phoenix_core.platform.destination import destination_payload
 
 router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
+ORGANISATION_HEADER = "X-Phoenix-Organisation"
+
+
+def _session_id(request: Request, core_api):
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        raise AuthenticationError("Authentication required.")
+    return core_api.resolve_session_id(token)
+
+
+def _organisation_id(request: Request):
+    value = request.headers.get(ORGANISATION_HEADER)
+    if not value:
+        return None
+    try:
+        return UUID(value)
+    except ValueError as exc:
+        raise ValidationError("Invalid organisation context.") from exc
 
 
 @router.get("/destination")
