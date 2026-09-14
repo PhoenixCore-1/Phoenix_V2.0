@@ -13,7 +13,7 @@ def build_client(tmp_path):
     organisation = core.create_organisation("TEST", "Test Company")
     user = core.create_user("test.user", "Test User", "test-password")
     core.add_membership(user.identity_id, organisation.id)
-    return TestClient(create_app(CoreApi(db, core))), organisation
+    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation
 
 
 def test_health_is_public(tmp_path):
