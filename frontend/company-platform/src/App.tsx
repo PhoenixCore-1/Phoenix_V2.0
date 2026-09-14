@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 
 type IconName = 'home' | 'people' | 'workspaces' | 'visibility' | 'activity' | 'reports' | 'settings' | 'search' | 'spark' | 'bell' | 'arrow'
 
@@ -24,7 +25,7 @@ const management = [
 ]
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
-  const paths: Record<IconName, React.ReactNode> = {
+  const paths: Record<IconName, ReactNode> = {
     home: <><path d="m3 9 9-6 9 6"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></>,
     people: <><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.2 2.3-5 6-5s6 1.8 6 5"/><path d="M16 6.5a3 3 0 0 1 0 5.5M17 15c2.5.5 4 2.1 4 4"/></>,
     workspaces: <><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
@@ -48,27 +49,16 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark"><span>P</span></div>
-          <span>PHOENIX</span>
-        </div>
+        <div className="brand"><div className="brand-mark"><span>P</span></div><span>PHOENIX</span></div>
         <nav className="sidebar-nav" aria-label="Company Platform">
-          {navigation.map((item) => (
-            <button key={item.label} className={`nav-item ${active === item.label ? 'active' : ''}`} onClick={() => setActive(item.label)}>
-              <Icon name={item.icon} size={15} />
-              <span>{item.label}</span>
-            </button>
-          ))}
+          {navigation.map((item) => <button key={item.label} className={`nav-item ${active === item.label ? 'active' : ''}`} onClick={() => setActive(item.label)}><Icon name={item.icon} size={15} /><span>{item.label}</span></button>)}
         </nav>
         <div className="sidebar-footer">COMPANY PLATFORM <span>V1</span></div>
       </aside>
 
       <main className="main-area">
         <header className="topbar">
-          <div className="topbar-title">
-            <span className="eyebrow">PHOENIX PLATFORM</span>
-            <h1>Company Platform</h1>
-          </div>
+          <div className="topbar-title"><span className="eyebrow">PHOENIX PLATFORM</span><h1>Company Platform</h1></div>
           <div className="topbar-actions">
             <button className="icon-button" aria-label="Search"><Icon name="search" /></button>
             <button className="icon-button" aria-label="AI Assistant"><Icon name="spark" /></button>
@@ -79,35 +69,13 @@ function App() {
         </header>
 
         <section className="workspace" key={active}>
-          <div className="page-header">
-            <div>
-              <span className="section-label">COMPANY PLATFORM</span>
-              <h2>{active === 'Home' ? 'Company Overview' : active}</h2>
-              <p>{active === 'Home' ? 'Administration and oversight for Phoenix Development Company.' : `${current?.label} for the current company environment.`}</p>
-            </div>
-            <span className="status-pill"><i /> ACTIVE</span>
-          </div>
+          <div className="page-header"><div><span className="section-label">COMPANY PLATFORM</span><h2>{active === 'Home' ? 'Company Overview' : active}</h2><p>{active === 'Home' ? 'Administration and oversight for Phoenix Development Company.' : `${current?.label} for the current company environment.`}</p></div><span className="status-pill"><i /> ACTIVE</span></div>
 
           {active === 'Home' ? <>
-            <div className="summary-grid">
-              <Summary label="COMPANY" title="Phoenix Development Company" meta="DEVCO" />
-              <Summary label="ADMINISTRATOR" title="Company Administrator" meta="company.admin" />
-              <Summary label="ACTIVE MODULES" title="1" meta="Modules available to this company" />
-            </div>
-
+            <div className="summary-grid"><Summary label="COMPANY" title="Phoenix Development Company" meta="DEVCO" /><Summary label="ADMINISTRATOR" title="Company Administrator" meta="company.admin" /><Summary label="ACTIVE MODULES" title="1" meta="Modules available to this company" /></div>
             <div className="section-heading"><span>ADMINISTRATION</span><h3>Company management</h3></div>
-            <div className="management-grid">
-              {management.map((item) => <button className="management-card" key={item.title} onClick={() => setActive(item.title)}>
-                <div className="card-icon"><Icon name={item.icon} size={16} /></div>
-                <span className="card-arrow"><Icon name="arrow" size={16} /></span>
-                <div className="card-copy"><h4>{item.title}</h4><p>{item.text}</p></div>
-              </button>)}
-            </div>
-
-            <div className="boundary-note">
-              <strong>Company administration boundary</strong>
-              <p>Company Platform manages the company environment, people, access, visibility and oversight. Phoenix platform licensing, subscriptions, billing and module activation remain outside this workspace.</p>
-            </div>
+            <div className="management-grid">{management.map((item) => <button className="management-card" key={item.title} onClick={() => setActive(item.title)}><div className="card-icon"><Icon name={item.icon} size={16} /></div><span className="card-arrow"><Icon name="arrow" size={16} /></span><div className="card-copy"><h4>{item.title}</h4><p>{item.text}</p></div></button>)}</div>
+            <div className="boundary-note"><strong>Company administration boundary</strong><p>Company Platform manages the company environment, people, access, visibility and oversight. Phoenix platform licensing, subscriptions, billing and module activation remain outside this workspace.</p></div>
           </> : <Placeholder title={active} icon={current?.icon ?? 'settings'} />}
         </section>
       </main>
@@ -115,12 +83,7 @@ function App() {
   )
 }
 
-function Summary({ label, title, meta }: { label: string; title: string; meta: string }) {
-  return <div className="summary-card"><span>{label}</span><strong>{title}</strong><small>{meta}</small></div>
-}
-
-function Placeholder({ title, icon }: { title: string; icon: IconName }) {
-  return <div className="placeholder-panel"><div className="placeholder-icon"><Icon name={icon} size={22} /></div><div><span className="section-label">COMPANY WORKSPACE</span><h3>{title}</h3><p>This workspace is scaffolded and ready for its authoritative Phoenix Core API data and full interaction design.</p></div></div>
-}
+function Summary({ label, title, meta }: { label: string; title: string; meta: string }) { return <div className="summary-card"><span>{label}</span><strong>{title}</strong><small>{meta}</small></div> }
+function Placeholder({ title, icon }: { title: string; icon: IconName }) { return <div className="placeholder-panel"><div className="placeholder-icon"><Icon name={icon} size={22} /></div><div><span className="section-label">COMPANY WORKSPACE</span><h3>{title}</h3><p>This workspace is scaffolded and ready for its authoritative Phoenix Core API data and full interaction design.</p></div></div> }
 
 export { App }
