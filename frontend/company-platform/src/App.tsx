@@ -13,7 +13,7 @@ import { Connect } from './Connect'
 type IconName = 'home' | 'people' | 'workspaces' | 'visibility' | 'activity' | 'reports' | 'settings' | 'legal' | 'evidence' | 'connect' | 'search' | 'spark' | 'bell' | 'arrow'
 type NavItem = { label: string; icon: IconName }
 
-a const navigation: NavItem[] = [
+const navigation: NavItem[] = [
   { label: 'Home', icon: 'home' }, { label: 'People & Access', icon: 'people' }, { label: 'Workspaces', icon: 'workspaces' },
   { label: 'Data Visibility', icon: 'visibility' }, { label: 'Activity', icon: 'activity' }, { label: 'Reports', icon: 'reports' }, { label: 'Compliance & Legal', icon: 'legal' }, { label: 'Evidence', icon: 'evidence' }, { label: 'Phoenix Connect', icon: 'connect' }, { label: 'Company Settings', icon: 'settings' },
 ]
