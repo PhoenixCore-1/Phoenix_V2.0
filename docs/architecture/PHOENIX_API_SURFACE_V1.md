@@ -4,6 +4,21 @@
 
 Architecture contract defining the target HTTP surface between Phoenix Core and Phoenix client applications. An endpoint listed here is not considered live until implemented by an HTTP adapter and covered by tests.
 
+## Current implementation milestone
+
+The authentication and current-context slice is now implemented in the FastAPI transport adapter:
+
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/session`
+- `GET /api/v1/me`
+- `GET /api/v1/me/identity`
+- `GET /api/v1/me/organisation`
+- `GET /api/v1/me/permissions`
+- `GET /api/v1/me/entitlements`
+
+These routes resolve identity, organisation, permissions and module entitlements through Core. The browser does not become an authority for any of them.
+
 ## Authority
 
 Phoenix Core remains the single authority for authentication, sessions, identity, organisation/tenant context, memberships, roles, permissions, module entitlements, audit evidence, Core documents, and legal/compliance evidence.
@@ -50,21 +65,21 @@ Known error classes map to validation, not-found, conflict, authentication, auth
 
 | Method | Route | Purpose | State |
 |---|---|---|---|
-| POST | `/api/v1/auth/login` | Authenticate user and establish Core session | TARGET |
-| POST | `/api/v1/auth/logout` | Revoke current session | TARGET |
-| GET | `/api/v1/auth/session` | Return current session state | TARGET |
+| POST | `/api/v1/auth/login` | Authenticate user and establish Core session | IMPLEMENTED |
+| POST | `/api/v1/auth/logout` | Revoke current session | IMPLEMENTED |
+| GET | `/api/v1/auth/session` | Return current session state | IMPLEMENTED |
 
-The existing Core authentication service and persistent session model remain authoritative. Browser transport must use a secure session mechanism rather than introducing a second authentication system.
+The existing Core authentication service and persistent session model remain authoritative. Browser transport uses a secure session mechanism rather than introducing a second authentication system.
 
 ## Current context
 
 | Method | Route | Purpose | State |
 |---|---|---|---|
-| GET | `/api/v1/me` | Current authenticated user context | TARGET |
-| GET | `/api/v1/me/identity` | Current Core identity | EXISTING CORE API |
-| GET | `/api/v1/me/organisation` | Current organisation | EXISTING CORE API |
-| GET | `/api/v1/me/permissions` | Effective permissions | EXTEND |
-| GET | `/api/v1/me/entitlements` | Effective module entitlements | EXTEND |
+| GET | `/api/v1/me` | Current authenticated user context | IMPLEMENTED |
+| GET | `/api/v1/me/identity` | Current Core identity | IMPLEMENTED |
+| GET | `/api/v1/me/organisation` | Current organisation | IMPLEMENTED |
+| GET | `/api/v1/me/permissions` | Effective permissions | IMPLEMENTED |
+| GET | `/api/v1/me/entitlements` | Effective module entitlements | IMPLEMENTED |
 
 ## Memberships, roles and permissions
 
@@ -200,8 +215,6 @@ POST /api/v1/notifications/{id}/read
 POST /api/v1/notifications/read-all
 ```
 
-Delivery channels and realtime transport remain implementation details behind Core communications.
-
 ## Search and AI
 
 ```text
@@ -209,63 +222,17 @@ GET /api/v1/search
 POST /api/v1/ai/context
 ```
 
-Search results must be permission and tenant scoped. AI context must use the same authorization/context rules and never bypass them.
+Search and AI responses must respect the same authenticated Core request context, permissions, entitlements and tenant boundary as ordinary API calls.
 
-## Module launch context
-
-A module launch request should return the authoritative launch context needed by the UI, including authenticated identity, organisation context, module identity/version, entitlement state, effective module permissions, navigation/workspace metadata, and request/correlation ID. The client must not manufacture this context.
-
-## Implementation classification
-
-### KEEP
-
-- Core authentication service and sessions
-- identities/users
-- organisations/memberships
-- roles/permissions
-- module entitlements
-- Core audit
-- Core documents
-- Core communications
-- legal policy acceptance foundation
-
-### EXTEND
-
-- CoreApi methods for effective permissions/entitlements
-- organisation/user/membership listing APIs
-- role and permission APIs
-- notifications API
-- legal/compliance APIs
-- System Platform read models/endpoints
-- Company Platform read/write endpoints
-- User Platform endpoints
-
-### BUILD
-
-- HTTP/FastAPI adapter
-- API routing and dependency/context middleware
-- secure browser session transport
-- API tests
-- React API client
-
-### DO NOT BUILD
-
-- second authentication service
-- second tenant/company authority
-- frontend-owned permissions
-- frontend-owned legal evidence
-- direct browser-to-SQL access
-- separate platform database that duplicates Core authority
-
-## Definition of done for HTTP API V1
+## Definition of done
 
 1. Every implemented route is backed by an authoritative Core service.
 2. Every authenticated route resolves Core request context server-side.
 3. Permission and entitlement checks occur server-side.
 4. Tenant isolation is enforced by Core/application services.
-5. API errors follow the standard Core error contract.
-6. Request IDs propagate through API and audit paths.
-7. Mutations create appropriate audit records.
-8. No HTTP route accesses Core persistence directly.
-9. Browser authentication does not require a second identity/session authority.
+5. API errors use the Core error contract.
+6. Request IDs propagate through the API and audit boundary.
+7. Mutations produce appropriate audit evidence.
+8. HTTP routes do not access persistence directly.
+9. Browser authentication does not require a second authority.
 10. React can operate entirely through the documented API boundary.
