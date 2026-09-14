@@ -23,24 +23,18 @@ def _request_id(request: Request) -> str:
     return request.headers.get(REQUEST_ID_HEADER) or str(uuid4())
 
 
-def _session_id(request: Request) -> UUID | None:
-    value = request.cookies.get(SESSION_COOKIE)
-    if not value:
-        return None
-    try:
-        return UUID(value)
-    except ValueError:
-        return None
+def _session_id(request: Request, core_api: CoreApi) -> UUID:
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        raise ValueError("Authentication required.")
+    return core_api.resolve_session_id(token)
 
 
 def _organisation_id(request: Request) -> UUID | None:
     value = request.headers.get(ORGANISATION_HEADER)
     if not value:
         return None
-    try:
-        return UUID(value)
-    except ValueError:
-        return None
+    return UUID(value)
 
 
 def create_app(core_api: CoreApi) -> FastAPI:
@@ -86,16 +80,16 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.post("/api/v1/auth/login")
     async def login(request: Request, response: Response):
         payload = await request.json()
+        organisation_id = UUID(payload["organisation_id"]) if payload.get("organisation_id") else None
         result = core_api.authenticate(
             request_id=request.state.request_id,
             username=str(payload.get("username", "")),
             password=str(payload.get("password", "")),
-            organisation_id=UUID(payload["organisation_id"]) if payload.get("organisation_id") else None,
+            organisation_id=organisation_id,
         )
-        session_id = result.data["session_id"]
         response.set_cookie(
             SESSION_COOKIE,
-            session_id,
+            result.data["token"],
             httponly=True,
             secure=True,
             samesite="lax",
@@ -107,24 +101,22 @@ def create_app(core_api: CoreApi) -> FastAPI:
 
     @application.post("/api/v1/auth/logout")
     def logout(request: Request, response: Response):
-        session_id = _session_id(request)
-        if session_id is None:
+        token = request.cookies.get(SESSION_COOKIE)
+        if not token:
             response.delete_cookie(SESSION_COOKIE, path="/")
             return {"data": {"revoked": False}, "request_id": request.state.request_id}
-        session = request.cookies.get(SESSION_COOKIE)
         result = core_api.revoke_session(
             request_id=request.state.request_id,
-            token=session,
+            token=token,
         )
         response.delete_cookie(SESSION_COOKIE, path="/")
         return {"data": result.data, "request_id": result.request_id}
 
     @application.get("/api/v1/me/identity")
     def current_identity(request: Request):
-        session_id = _session_id(request)
         result = core_api.get_current_identity(
             request_id=request.state.request_id,
-            session_id=session_id,
+            session_id=_session_id(request, core_api),
             organisation_id=_organisation_id(request),
         )
         return {"data": result.data, "request_id": result.request_id}
@@ -133,7 +125,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     def current_organisation(request: Request):
         result = core_api.get_current_organisation(
             request_id=request.state.request_id,
-            session_id=_session_id(request),
+            session_id=_session_id(request, core_api),
             organisation_id=_organisation_id(request),
         )
         return {"data": result.data, "request_id": result.request_id}
@@ -142,7 +134,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     def current_user(request: Request):
         result = core_api.get_current_user(
             request_id=request.state.request_id,
-            session_id=_session_id(request),
+            session_id=_session_id(request, core_api),
             organisation_id=_organisation_id(request),
         )
         return {"data": result.data, "request_id": result.request_id}
