@@ -6,6 +6,9 @@ from phoenix_core.http_api.app import ORGANISATION_HEADER, SESSION_COOKIE, creat
 from phoenix_core.services import CoreFoundationService
 
 
+TEST_ORIGIN = "https://testserver"
+
+
 def build_client(tmp_path):
     db = SQLiteDatabase(tmp_path / "core.db")
     core = CoreFoundationService(db)
@@ -13,7 +16,11 @@ def build_client(tmp_path):
     organisation = core.create_organisation("TEST", "Test Company")
     user = core.create_user("test.user", "Test User", "test-password")
     core.add_membership(user.identity_id, organisation.id)
-    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation
+    return TestClient(create_app(CoreApi(db, core)), base_url=TEST_ORIGIN), organisation
+
+
+def browser_headers(**headers):
+    return {"Origin": TEST_ORIGIN, **headers}
 
 
 def test_health_is_public(tmp_path):
@@ -88,7 +95,7 @@ def test_logout_revokes_session_and_clears_cookie(tmp_path):
     )
     assert login.status_code == 200
 
-    response = client.post("/api/v1/auth/logout")
+    response = client.post("/api/v1/auth/logout", headers=browser_headers())
 
     assert response.status_code == 200
     assert response.json()["data"]["revoked"] is True
