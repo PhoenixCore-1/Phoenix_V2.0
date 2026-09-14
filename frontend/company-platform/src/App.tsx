@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { getSession, logout, type CoreSession, canAccessCompanyPlatform } from './auth'
+import { getPlatformDestinations, getSession, logout, type CoreSession, type PlatformDestinations } from './auth'
 import { LoginPage } from './LoginPage'
 import { Workspaces } from './Workspaces'
 import { DataVisibility } from './DataVisibility'
@@ -48,7 +48,9 @@ async function loadCompany(): Promise<Company> {
 
 function App() {
   const [session, setSession] = useState<CoreSession | null>(null)
+  const [destinations, setDestinations] = useState<PlatformDestinations | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [destinationError, setDestinationError] = useState('')
   const [active, setActive] = useState('Home'); const [menuOpen, setMenuOpen] = useState(false); const [company, setCompany] = useState<Company | null>(null); const [companyError, setCompanyError] = useState('')
   const current = useMemo(() => navigation.find((item) => item.label === active), [active])
 
@@ -57,8 +59,17 @@ function App() {
     try {
       const currentSession = await getSession()
       setSession(currentSession)
-    } catch {
+      if (currentSession) {
+        const resolved = await getPlatformDestinations()
+        setDestinations(resolved)
+        setDestinationError('')
+      } else {
+        setDestinations(null)
+      }
+    } catch (error) {
       setSession(null)
+      setDestinations(null)
+      setDestinationError(error instanceof Error ? error.message : 'Unable to resolve Phoenix destinations.')
     } finally {
       setCheckingSession(false)
     }
@@ -67,13 +78,15 @@ function App() {
   useEffect(() => { void refreshSession() }, [])
 
   useEffect(() => {
-    if (!session || !canAccessCompanyPlatform(session)) return
+    if (!session || !destinations?.destinations.some(item => item.code === 'company')) return
     void loadCompany().then(setCompany).catch(error => setCompanyError(error instanceof Error ? error.message : 'Unable to load company identity.'))
-  }, [session])
+  }, [session, destinations])
 
   if (checkingSession) return <div className="auth-shell"><div className="auth-loading">Connecting to Phoenix Core…</div></div>
   if (!session) return <LoginPage onAuthenticated={() => void refreshSession()} />
-  if (!canAccessCompanyPlatform(session)) return <div className="auth-shell"><div className="auth-card"><span className="auth-eyebrow">PHOENIX CORE</span><h1>Company Platform access required</h1><p className="auth-intro">Your authenticated Phoenix account does not have a Company Platform permission for this destination.</p><button className="auth-submit" onClick={() => { void logout().finally(() => setSession(null)) }}>Sign out</button></div></div>
+  const hasCompanyDestination = destinations?.destinations.some(item => item.code === 'company') ?? false
+  if (destinationError || !destinations) return <div className="auth-shell"><div className="auth-card"><span className="auth-eyebrow">PHOENIX CORE</span><h1>Platform destination unavailable</h1><p className="auth-intro">{destinationError || 'Phoenix Core did not return a platform destination.'}</p><button className="auth-submit" onClick={() => { void logout().finally(() => setSession(null)) }}>Sign out</button></div></div>
+  if (!hasCompanyDestination) return <div className="auth-shell"><div className="auth-card"><span className="auth-eyebrow">PHOENIX CORE</span><h1>Company Platform access required</h1><p className="auth-intro">Phoenix Core did not grant this authenticated session access to the Company Platform destination.</p><button className="auth-submit" onClick={() => { void logout().finally(() => setSession(null)) }}>Sign out</button></div></div>
 
   const companyName = company?.name || 'Company Platform'; const companyCode = company?.code || '—'; const companyStatus = company?.status || 'UNKNOWN'
   return <div className="app-shell"><aside className="sidebar"><div className="brand"><div className="brand-mark"><span>P</span></div><span>PHOENIX</span></div><nav className="sidebar-nav" aria-label="Company Platform">{navigation.map((item) => <button key={item.label} className={`nav-item ${active === item.label ? 'active' : ''}`} onClick={() => setActive(item.label)}><Icon name={item.icon} size={15} /><span>{item.label}</span></button>)}</nav><div className="sidebar-footer">COMPANY PLATFORM <span>V1</span></div></aside><main className="main-area"><header className="topbar"><div className="topbar-title"><span className="eyebrow">PHOENIX COMPANY PLATFORM</span><h1>{companyName}</h1></div><div className="topbar-actions"><button className="icon-button" aria-label="Search"><Icon name="search" /></button><button className="icon-button" aria-label="AI Assistant"><Icon name="spark" /></button><button className="icon-button" aria-label="Notifications"><Icon name="bell" /></button><button className="avatar" aria-label="Account" onClick={() => setMenuOpen(!menuOpen)}>CA</button>{menuOpen && <div className="user-popover"><strong>Company Administrator</strong><span>Company Platform · {companyCode}</span><button onClick={() => { void logout().finally(() => { setMenuOpen(false); setSession(null); setCompany(null) }) }}>Sign out</button></div>}</div></header><section className="workspace" key={active}><div className="page-header"><div><span className="section-label">COMPANY PLATFORM</span><h2>{active === 'Home' ? 'Company Overview' : active}</h2><p>{active === 'Home' ? `Administration and oversight for ${companyName}.` : `${current?.label} for the current company environment.`}</p></div><span className="status-pill"><i /> {companyStatus}</span></div>{companyError && <div className="inline-notice">{companyError}</div>}{active === 'Home' ? <><div className="summary-grid"><Summary label="COMPANY" title={companyName} meta={companyCode} /><Summary label="ADMINISTRATOR" title="Company Administrator" meta="Company Platform" /><Summary label="TENANT STATUS" title={companyStatus} meta={company?.id || 'Awaiting Core identity'} /></div><div className="section-heading"><span>ADMINISTRATION</span><h3>Company management</h3></div><div className="management-grid">{management.map((item) => <button className="management-card" key={item.title} onClick={() => setActive(item.title)}><div className="card-icon"><Icon name={item.icon} size={16} /></div><span className="card-arrow"><Icon name="arrow" size={16} /></span><div className="card-copy"><h4>{item.title}</h4><p>{item.text}</p></div></button>)}</div><div className="boundary-note"><strong>Company administration boundary</strong><p>Company Platform manages the company environment, people, access, visibility and oversight. Phoenix platform licensing, subscriptions and module activation remain outside this workspace.</p></div></> : active === 'People & Access' ? <PeopleAccessWorkspace /> : active === 'Workspaces' ? <Workspaces /> : active === 'Data Visibility' ? <DataVisibility /> : active === 'Activity' ? <Activity /> : active === 'Reports' ? <Reports /> : active === 'Company Settings' ? <CompanySettings /> : active === 'Compliance & Legal' ? <Compliance /> : active === 'Evidence' ? <Evidence /> : active === 'Phoenix Connect' ? <Connect /> : <Placeholder title={active} icon={current?.icon ?? 'settings'} />}</section></main></div>
