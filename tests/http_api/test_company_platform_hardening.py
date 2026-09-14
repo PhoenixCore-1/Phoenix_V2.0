@@ -63,7 +63,7 @@ def _client(tmp_path):
     organisation = core.create_organisation("TEST", "Test Company")
     user = core.create_user("admin", "Company Admin", "password")
     membership = core.add_membership(user.identity_id, organisation.id)
-    client = TestClient(create_app(CoreApi(db, core)))
+    client = TestClient(create_app(CoreApi(db, core)), base_url="https://testserver")
     login = client.post(
         "/api/v1/auth/login",
         json={"username": "admin", "password": "password", "organisation_id": str(organisation.id)},
@@ -90,7 +90,7 @@ def test_same_origin_state_change_is_allowed_to_reach_authentication_layer(tmp_p
     response = client.post(
         "/api/v1/auth/logout",
         headers={
-            "Origin": "http://testserver",
+            "Origin": "https://testserver",
             ORGANISATION_HEADER: str(organisation.id),
         },
     )
