@@ -8,6 +8,9 @@ from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.services import CoreFoundationService
 
 
+TEST_ORIGIN = "https://testserver"
+
+
 def build_client(tmp_path):
     db = SQLiteDatabase(tmp_path / "core.db")
     core = CoreFoundationService(db)
@@ -19,7 +22,11 @@ def build_client(tmp_path):
     permission = core.create_permission("company.configuration.manage", "Manage company configuration")
     core.grant_permission(role.id, permission.id)
     core.assign_role(membership.id, role.id)
-    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation, core
+    return TestClient(create_app(CoreApi(db, core)), base_url=TEST_ORIGIN), organisation, core
+
+
+def browser_headers(**headers):
+    return {"Origin": TEST_ORIGIN, **headers}
 
 
 def login(client, organisation):
@@ -37,7 +44,7 @@ def test_company_settings_are_tenant_scoped_and_audited(tmp_path):
 
     response = client.patch(
         "/api/v1/company/settings/company.timezone",
-        headers=headers,
+        headers=browser_headers(**headers),
         json={"value": "Africa/Johannesburg", "value_type": "STRING", "description": "Company timezone"},
     )
     assert response.status_code == 200
@@ -60,7 +67,7 @@ def test_company_settings_require_configuration_permission(tmp_path):
     membership = core.add_membership(user.identity_id, organisation.id)
     role = core.create_role(organisation.id, "user", "Company User")
     core.assign_role(membership.id, role.id)
-    client = TestClient(create_app(CoreApi(db, core)), base_url="https://testserver")
+    client = TestClient(create_app(CoreApi(db, core)), base_url=TEST_ORIGIN)
 
     response = client.post(
         "/api/v1/auth/login",
@@ -81,6 +88,6 @@ def test_company_settings_cannot_be_read_using_foreign_organisation_context(tmp_
 
     response = client.get(
         "/api/v1/company/settings",
-        headers={ORGANISATION_HEADER: str(other.id)},
+        headers={**headers, ORGANISATION_HEADER: str(other.id)},
     )
     assert response.status_code == 403
