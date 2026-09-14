@@ -91,7 +91,20 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request.state.request_id = _request_id(request)
-        _validate_same_origin(request)
+        try:
+            _validate_same_origin(request)
+        except ValidationError as exc:
+            api_error = error_from_exception(exc, request_id=request.state.request_id)
+            response = JSONResponse(
+                status_code=422,
+                content={
+                    "code": api_error.code,
+                    "message": api_error.message,
+                    "request_id": api_error.request_id,
+                },
+            )
+            response.headers[REQUEST_ID_HEADER] = request.state.request_id
+            return response
         response = await call_next(request)
         response.headers[REQUEST_ID_HEADER] = request.state.request_id
         return response
