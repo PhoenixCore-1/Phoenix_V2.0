@@ -17,6 +17,8 @@ The authentication and current-context slice is now implemented in the FastAPI t
 - `GET /api/v1/me/permissions`
 - `GET /api/v1/me/entitlements`
 
+The Company Platform People & Access slice is also implemented, including server-side permission checks, tenant-bound mutations, and Core audit recording.
+
 These routes resolve identity, organisation, permissions and module entitlements through Core. The browser does not become an authority for any of them.
 
 ## Authority
@@ -86,15 +88,25 @@ The existing Core authentication service and persistent session model remain aut
 | Method | Route | Purpose | State |
 |---|---|---|---|
 | GET | `/api/v1/company/users` | Company users with tenant membership status | IMPLEMENTED |
-| GET | `/api/v1/company/memberships` | Current company memberships | EXTEND |
-| GET | `/api/v1/company/roles` | Organisation roles | EXTEND |
-| GET | `/api/v1/company/permissions` | Available/effective company permissions | EXTEND |
-| POST | `/api/v1/company/users` | Provision company user | EXTEND |
-| PATCH | `/api/v1/company/users/{id}` | Update company user | EXTEND |
-| POST | `/api/v1/company/memberships/{id}/suspend` | Suspend membership | EXTEND |
-| POST | `/api/v1/company/memberships/{id}/restore` | Restore membership | EXTEND |
+| GET | `/api/v1/company/memberships` | Current company memberships | IMPLEMENTED |
+| GET | `/api/v1/company/roles` | Organisation roles | IMPLEMENTED |
+| GET | `/api/v1/company/permissions` | Available/effective company permissions | IMPLEMENTED |
+| POST | `/api/v1/company/users` | Provision company user and membership | IMPLEMENTED |
+| PATCH | `/api/v1/company/users/{id}` | Update company user | IMPLEMENTED |
+| POST | `/api/v1/company/memberships/{id}/suspend` | Suspend membership | IMPLEMENTED |
+| POST | `/api/v1/company/memberships/{id}/restore` | Restore active membership | IMPLEMENTED |
+| POST | `/api/v1/company/memberships/{id}/remove` | Remove membership | IMPLEMENTED |
+| POST | `/api/v1/company/roles` | Create organisation role | IMPLEMENTED |
+| PATCH | `/api/v1/company/roles/{id}` | Update organisation role | IMPLEMENTED |
+| POST | `/api/v1/company/roles/{id}/disable` | Disable organisation role | IMPLEMENTED |
+| POST | `/api/v1/company/roles/{id}/enable` | Enable organisation role | IMPLEMENTED |
+| GET | `/api/v1/company/roles/{id}/permissions` | List role permissions | IMPLEMENTED |
+| POST | `/api/v1/company/roles/{id}/permissions/{permission_id}` | Grant role permission | IMPLEMENTED |
+| DELETE | `/api/v1/company/roles/{id}/permissions/{permission_id}` | Revoke role permission | IMPLEMENTED |
+| POST | `/api/v1/company/memberships/{id}/roles/{role_id}` | Assign role to membership | IMPLEMENTED |
+| DELETE | `/api/v1/company/memberships/{id}/roles/{role_id}` | Remove role from membership | IMPLEMENTED |
 
-Every mutation is permission checked server-side and must produce appropriate audit evidence.
+People & Access mutations require the appropriate Core permissions: `company.users.manage`, `company.memberships.manage`, and `company.roles.manage`. Target users, memberships, and roles are checked against the authenticated organisation before mutation. Successful mutations produce Core audit events with the current identity, tenant and request/correlation ID.
 
 ## System Platform
 
