@@ -52,12 +52,12 @@ export function Compliance() {
       <table className="people-table">
         <thead><tr><th>REQUIREMENT</th><th>VERSION</th><th>EFFECTIVE</th><th>ACCEPTANCES</th><th>STATUS</th></tr></thead>
         <tbody>
-          {loading ? <tr><td colSpan={5} className="table-empty">Loading compliance records…</td></tr> : !data || data.items.length === 0 ? <tr><td colSpan={5} className="table-empty">{notice || 'No active company legal requirements are currently published.'}</td></tr> : data.items.map((item) => <tr key={item.version.id}>
+          {loading ? <tr><td colSpan={5} className="table-empty">Loading compliance records…</td></tr> : !data || data.items.length === 0 ? <tr><td colSpan={5} className="table-empty">{notice || 'No active company legal requirements are currently published.'}</td></tr> : data.items.map((item) => <tr key={`${item.policy_id}-${item.version.number}`}>
             <td><strong>{item.policy_code}</strong><div style={{ marginTop: 3, color: '#8290a0', fontSize: 9 }}>{item.policy_type}</div></td>
             <td>{item.version.label || `v${item.version.number}`}</td>
             <td>{new Date(item.version.effective_at).toLocaleDateString()}</td>
             <td>{item.acceptance_count}</td>
-            <td><span className={`access-pill ${item.current_identity_accepted ? 'active' : item.acceptance_required ? 'suspended' : 'active'}`}>{item.status.replaceAll('_', ' ')}</span></td>
+            <td><span className={`access-pill ${item.current_identity_accepted ? 'active' : item.acceptance_required ? 'suspended' : 'active'}`}>{item.status.replace(/_/g, ' ')}</span></td>
           </tr>)}
         </tbody>
       </table>
