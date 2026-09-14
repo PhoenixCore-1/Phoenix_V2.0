@@ -6,18 +6,7 @@ Architecture contract defining the target HTTP surface between Phoenix Core and 
 
 ## Current implementation milestone
 
-The authentication and current-context slice is now implemented in the FastAPI transport adapter:
-
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/session`
-- `GET /api/v1/me`
-- `GET /api/v1/me/identity`
-- `GET /api/v1/me/organisation`
-- `GET /api/v1/me/permissions`
-- `GET /api/v1/me/entitlements`
-
-The Company Platform People & Access slice is also implemented, including server-side permission checks, tenant-bound mutations, and Core audit recording.
+The authentication and current-context slice is implemented in the FastAPI transport adapter. The Company Platform People & Access, Workspaces, Data Visibility, Reporting, Settings and Compliance & Legal read-only slices are also implemented against Phoenix Core authority.
 
 These routes resolve identity, organisation, permissions and module entitlements through Core. The browser does not become an authority for any of them.
 
@@ -61,8 +50,6 @@ Errors use the Core `ApiError` contract:
 {"code": "AUTHORIZATION_ERROR", "message": "Permission denied.", "request_id": "..."}
 ```
 
-Known error classes map to validation, not-found, conflict, authentication, authorization, Core, and internal error categories.
-
 ## Authentication and session
 
 | Method | Route | Purpose | State |
@@ -70,8 +57,6 @@ Known error classes map to validation, not-found, conflict, authentication, auth
 | POST | `/api/v1/auth/login` | Authenticate user and establish Core session | IMPLEMENTED |
 | POST | `/api/v1/auth/logout` | Revoke current session | IMPLEMENTED |
 | GET | `/api/v1/auth/session` | Return current session state | IMPLEMENTED |
-
-The existing Core authentication service and persistent session model remain authoritative. Browser transport uses a secure session mechanism rather than introducing a second authentication system.
 
 ## Current context
 
@@ -85,55 +70,20 @@ The existing Core authentication service and persistent session model remain aut
 
 ## Memberships, roles and permissions
 
-| Method | Route | Purpose | State |
-|---|---|---|---|
-| GET | `/api/v1/company/users` | Company users with tenant membership status | IMPLEMENTED |
-| GET | `/api/v1/company/memberships` | Current company memberships | IMPLEMENTED |
-| GET | `/api/v1/company/roles` | Organisation roles | IMPLEMENTED |
-| GET | `/api/v1/company/permissions` | Available/effective company permissions | IMPLEMENTED |
-| POST | `/api/v1/company/users` | Provision company user and membership | IMPLEMENTED |
-| PATCH | `/api/v1/company/users/{id}` | Update company user | IMPLEMENTED |
-| POST | `/api/v1/company/memberships/{id}/suspend` | Suspend membership | IMPLEMENTED |
-| POST | `/api/v1/company/memberships/{id}/restore` | Restore active membership | IMPLEMENTED |
-| POST | `/api/v1/company/memberships/{id}/remove` | Remove membership | IMPLEMENTED |
-| POST | `/api/v1/company/roles` | Create organisation role | IMPLEMENTED |
-| PATCH | `/api/v1/company/roles/{id}` | Update organisation role | IMPLEMENTED |
-| POST | `/api/v1/company/roles/{id}/disable` | Disable organisation role | IMPLEMENTED |
-| POST | `/api/v1/company/roles/{id}/enable` | Enable organisation role | IMPLEMENTED |
-| GET | `/api/v1/company/roles/{id}/permissions` | List role permissions | IMPLEMENTED |
-| POST | `/api/v1/company/roles/{id}/permissions/{permission_id}` | Grant role permission | IMPLEMENTED |
-| DELETE | `/api/v1/company/roles/{id}/permissions/{permission_id}` | Revoke role permission | IMPLEMENTED |
-| POST | `/api/v1/company/memberships/{id}/roles/{role_id}` | Assign role to membership | IMPLEMENTED |
-| DELETE | `/api/v1/company/memberships/{id}/roles/{role_id}` | Remove role from membership | IMPLEMENTED |
-
-People & Access mutations require the appropriate Core permissions: `company.users.manage`, `company.memberships.manage`, and `company.roles.manage`. Target users, memberships, and roles are checked against the authenticated organisation before mutation. Successful mutations produce Core audit events with the current identity, tenant and request/correlation ID.
-
-## System Platform
-
-System Platform endpoints expose Phoenix platform administration, not tenant business transactions.
+The Company Platform People & Access surface is implemented, including tenant-bound mutations, server-side authorization and Core audit recording.
 
 ```text
-GET /api/v1/system/dashboard
-GET /api/v1/system/companies
-GET /api/v1/system/companies/{id}
-GET /api/v1/system/users
-GET /api/v1/system/users/{id}
-GET /api/v1/system/modules
-GET /api/v1/system/modules/{id}
-GET /api/v1/system/licensing
-GET /api/v1/system/billing
-GET /api/v1/system/programmes
-GET /api/v1/system/security
-GET /api/v1/system/audit
-GET /api/v1/system/integrations
-GET /api/v1/system/health
-GET /api/v1/system/support
-GET /api/v1/system/documentation
-GET /api/v1/system/settings
-GET /api/v1/system/regulatory-legal
+GET/POST/PATCH /api/v1/company/users
+GET /api/v1/company/memberships
+GET/POST/PATCH /api/v1/company/roles
+POST /api/v1/company/memberships/{id}/suspend
+POST /api/v1/company/memberships/{id}/restore
+POST /api/v1/company/memberships/{id}/remove
+GET /api/v1/company/permissions
+GET /api/v1/company/roles/{id}/permissions
+POST/DELETE /api/v1/company/roles/{id}/permissions/{permission_id}
+POST/DELETE /api/v1/company/memberships/{id}/roles/{role_id}
 ```
-
-Mutation endpoints are added only when an authoritative Core service and permission model exist.
 
 ## Company Platform
 
@@ -141,101 +91,41 @@ Company Platform is tenant/company administration and cannot become a second pla
 
 ```text
 GET /api/v1/company
-GET /api/v1/company/users
-GET /api/v1/company/roles
-GET /api/v1/company/permissions
 GET /api/v1/company/workspaces
-GET /api/v1/company/modules
+GET /api/v1/company/visibility
 GET /api/v1/company/activity
 GET /api/v1/company/reports
+GET /api/v1/company/settings
 GET /api/v1/company/compliance
-GET /api/v1/company/contracts
-GET /api/v1/company/evidence
 ```
 
 Company context is derived through Core request context and membership validation.
 
-## User Platform
+### Compliance & Legal
 
-```text
-GET /api/v1/user/dashboard
-GET /api/v1/user/profile
-GET /api/v1/user/preferences
-GET /api/v1/user/workspaces
-GET /api/v1/user/notifications
-GET /api/v1/user/legal
-GET /api/v1/user/activity
-GET /api/v1/user/security
-```
+`GET /api/v1/company/compliance` exposes the existing Core policy, active policy-version and policy-acceptance records for the authenticated company context. It reports active requirements, current identity acceptance status and acceptance counts without creating a second legal/evidence authority.
+
+Company contracts and dedicated evidence-record management remain intentionally unimplemented until authoritative Core models and workflows exist. The UI must not imply those capabilities are live.
+
+## System Platform
+
+System Platform owns Phoenix-wide regulatory/legal framework, platform settings, licensing, module activation and other platform-control concerns. Company Platform cannot perform those operations.
+
+## User Platform
 
 User Platform is the personal workspace and does not replace Core identity/security authority.
 
-## Modules and entitlements
-
-```text
-GET /api/v1/modules
-GET /api/v1/modules/{code}
-GET /api/v1/modules/{code}/access
-POST /api/v1/modules/{code}/launch
-```
-
-Module access requires appropriate authorization and an active Core entitlement where applicable. Frontend visibility never grants access.
-
 ## Documents
-
-```text
-GET /api/v1/documents
-GET /api/v1/documents/{id}
-GET /api/v1/documents/{id}/versions
-POST /api/v1/documents
-POST /api/v1/documents/{id}/versions
-```
 
 Core remains the document and document-version authority. Legal evidence references exact document versions and hashes.
 
 ## Legal and compliance
 
-```text
-GET /api/v1/legal/requirements
-GET /api/v1/legal/required-actions
-GET /api/v1/legal/documents/{id}
-GET /api/v1/legal/documents/{id}/versions
-POST /api/v1/legal/actions/{requirement_id}/complete
-GET /api/v1/legal/evidence
-GET /api/v1/legal/evidence/{id}
-GET /api/v1/legal/history
-```
-
-Legal actions are server-side operations. A browser checkbox or client-side state is never the legal evidence authority. Completion must resolve authenticated identity and organisation context from Core and associate the exact legal requirement/document version with immutable evidence and the corresponding Core audit event.
+The existing Core legal foundation contains policies, policy versions and policy acceptances. Legal actions are server-side operations. A browser checkbox or client-side state is never the legal evidence authority. Completion must resolve authenticated identity and organisation context from Core and associate the exact legal requirement/document version with immutable evidence and the corresponding Core audit event.
 
 ## Audit
 
-```text
-GET /api/v1/audit/events
-GET /api/v1/audit/events/{id}
-```
-
 Audit records are append-only Core evidence. Ordinary application clients cannot modify or delete audit events.
-
-## Notifications and communications
-
-The existing Core communications subsystem is the authority for platform communications. Notifications must be exposed through that subsystem rather than a separate notification authority.
-
-```text
-GET /api/v1/notifications
-GET /api/v1/notifications/{id}
-POST /api/v1/notifications/{id}/read
-POST /api/v1/notifications/read-all
-```
-
-## Search and AI
-
-```text
-GET /api/v1/search
-POST /api/v1/ai/context
-```
-
-Search and AI responses must respect the same authenticated Core request context, permissions, entitlements and tenant boundary as ordinary API calls.
 
 ## Definition of done
 
