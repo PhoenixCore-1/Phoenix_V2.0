@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Request
+from pydantic import BaseModel
 
 from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.company.visibility import CompanyVisibilityService
@@ -15,6 +16,14 @@ def _service(request: Request) -> CompanyVisibilityService:
     return CompanyVisibilityService(request.app.state.core_api.core_service.db)
 
 
+class VisibilityPayload(BaseModel):
+    scope_type: str = ""
+    resource_code: str = ""
+    visible: bool | None = None
+    membership_id: UUID | None = None
+    role_id: UUID | None = None
+
+
 @router.get("")
 async def list_visibility(request: Request):
     context = await resolve_request_context(request)
@@ -23,19 +32,16 @@ async def list_visibility(request: Request):
 
 
 @router.put("")
-async def set_visibility(request: Request):
+async def set_visibility(request: Request, payload: VisibilityPayload):
     context = await resolve_request_context(request)
     request.app.state.core_api.require_permission(context, "company.visibility.manage")
-    payload = await request.json()
-    membership_id = UUID(payload["membership_id"]) if payload.get("membership_id") else None
-    role_id = UUID(payload["role_id"]) if payload.get("role_id") else None
     result = _service(request).upsert(
         context.organisation_id,
-        scope_type=str(payload.get("scope_type", "")),
-        resource_code=str(payload.get("resource_code", "")),
-        visible=payload.get("visible"),
-        membership_id=membership_id,
-        role_id=role_id,
+        scope_type=payload.scope_type,
+        resource_code=payload.resource_code,
+        visible=payload.visible,
+        membership_id=payload.membership_id,
+        role_id=payload.role_id,
     )
     request.app.state.core_api.core_service.audit_service.record(AuditEvent.create(
         action="COMPANY_VISIBILITY_UPDATED",
