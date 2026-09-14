@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { login } from './auth'
+import './auth.css'
 
 type Props = { onAuthenticated: () => void }
 
