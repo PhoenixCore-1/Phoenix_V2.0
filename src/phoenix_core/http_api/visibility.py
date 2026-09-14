@@ -18,6 +18,7 @@ def _service(request: Request) -> CompanyVisibilityService:
 @router.get("")
 async def list_visibility(request: Request):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.visibility.manage")
     return {"data": {"items": _service(request).list(context.organisation_id)}, "request_id": context.request_id}
 
 
