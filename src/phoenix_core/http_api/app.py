@@ -4,6 +4,7 @@ The adapter owns HTTP concerns only. Business authority remains in CoreApi
 and Core application services.
 """
 
+from urllib.parse import urlparse
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request, Response
@@ -27,6 +28,7 @@ from phoenix_core.services import CoreFoundationService
 SESSION_COOKIE = "phoenix_session"
 ORGANISATION_HEADER = "X-Phoenix-Organisation"
 REQUEST_ID_HEADER = "X-Request-ID"
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 def _request_id(request: Request) -> str:
@@ -50,6 +52,29 @@ def _organisation_id(request: Request) -> UUID | None:
         raise ValidationError("Invalid organisation context.") from exc
 
 
+def _validate_same_origin(request: Request) -> None:
+    """Reject cross-origin state-changing browser requests.
+
+    Phoenix uses an HTTP-only session cookie, so state-changing requests need a
+    browser-origin check in addition to SameSite cookie protection. Requests
+    without an Origin header remain valid for non-browser/API clients.
+    """
+    if request.method not in _MUTATING_METHODS:
+        return
+    origin = request.headers.get("Origin")
+    if not origin:
+        return
+    parsed = urlparse(origin)
+    host = request.headers.get("host")
+    if not parsed.scheme or not parsed.netloc or not host:
+        raise ValidationError("Invalid request origin.")
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    request_scheme = forwarded_proto.split(",", 1)[0].strip() if forwarded_proto else request.url.scheme
+    expected = f"{request_scheme}://{host}"
+    if origin.rstrip("/") != expected.rstrip("/"):
+        raise ValidationError("Cross-origin state-changing requests are not allowed.")
+
+
 def create_app(core_api: CoreApi) -> FastAPI:
     """Create the Phoenix Core HTTP API around an existing CoreApi."""
     application = FastAPI(title="Phoenix Core API", version="1.0")
@@ -66,6 +91,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request.state.request_id = _request_id(request)
+        _validate_same_origin(request)
         response = await call_next(request)
         response.headers[REQUEST_ID_HEADER] = request.state.request_id
         return response
