@@ -28,6 +28,29 @@ async def current_company(request: Request):
     }
 
 
+@router.get("/users")
+async def users(request: Request):
+    context = await resolve_request_context(request)
+    service = request.app.state.core_api.core_service
+    memberships = service.list_memberships(_organisation(context))
+    items = []
+    for membership in memberships:
+        user = service.get_user_by_identity(membership.identity_id)
+        items.append(
+            {
+                "id": str(user.id),
+                "identity_id": str(user.identity_id),
+                "username": user.username,
+                "display_name": user.display_name,
+                "user_status": user.status,
+                "membership_id": str(membership.id),
+                "membership_status": membership.status,
+                "created_at": user.created_at.isoformat(),
+            }
+        )
+    return {"data": {"items": items}, "request_id": context.request_id}
+
+
 @router.get("/memberships")
 async def memberships(request: Request):
     context = await resolve_request_context(request)
