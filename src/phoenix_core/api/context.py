@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from phoenix_core.errors import AuthenticationError, AuthorizationError
+from phoenix_core.errors import AuthenticationError
 from phoenix_core.security.context import RequestContext
 from phoenix_core.sessions.service import SessionService
 
@@ -44,7 +44,7 @@ class RequestContextResolver:
         ).fetchone()
 
         if not membership:
-            raise AuthorizationError(
+            raise AuthenticationError(
                 "User is not an active member of this organisation."
             )
 
