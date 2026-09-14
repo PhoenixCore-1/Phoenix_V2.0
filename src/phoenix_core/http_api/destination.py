@@ -5,10 +5,10 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 
 from phoenix_core.errors import AuthenticationError, ValidationError
-from phoenix_core.http_api.app import SESSION_COOKIE
 from phoenix_core.platform.destination import destination_payload
 
 router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
+SESSION_COOKIE = "phoenix_session"
 ORGANISATION_HEADER = "X-Phoenix-Organisation"
 
 
