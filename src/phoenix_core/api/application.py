@@ -81,6 +81,70 @@ class CoreApi:
             "display_name": user.display_name, "status": user.status, "created_at": user.created_at.isoformat(),
         }, request_id=context.request_id)
 
+    def company_current(self, context) -> ApiResponse:
+        """Read the current tenant through the Core application boundary."""
+        organisation = self.core_service.get_organisation(context.organisation_id)
+        return ApiResponse(data={
+            "id": str(organisation.id), "code": organisation.code, "name": organisation.name,
+            "status": organisation.status, "created_at": organisation.created_at.isoformat(),
+        }, request_id=context.request_id)
+
+    def company_users(self, context) -> ApiResponse:
+        """Read tenant users through the Core application boundary."""
+        self.require_permission(context, "company.memberships.manage")
+        memberships = self.core_service.list_memberships(context.organisation_id)
+        items = []
+        for membership in memberships:
+            user = self.core_service.get_user_by_identity(membership.identity_id)
+            items.append({
+                "id": str(user.id), "identity_id": str(user.identity_id), "username": user.username,
+                "display_name": user.display_name, "user_status": user.status,
+                "membership_id": str(membership.id), "membership_status": membership.status,
+                "created_at": user.created_at.isoformat(),
+            })
+        return ApiResponse(data={"items": items}, request_id=context.request_id)
+
+    def company_memberships(self, context) -> ApiResponse:
+        """Read tenant memberships through the Core application boundary."""
+        self.require_permission(context, "company.memberships.manage")
+        items = self.core_service.list_memberships(context.organisation_id)
+        return ApiResponse(data={"items": [{
+            "id": str(item.id), "identity_id": str(item.identity_id),
+            "organisation_id": str(item.organisation_id), "status": item.status,
+            "created_at": item.created_at.isoformat(),
+        } for item in items]}, request_id=context.request_id)
+
+    def company_roles(self, context) -> ApiResponse:
+        """Read tenant roles through the Core application boundary."""
+        self.require_permission(context, "company.roles.manage")
+        items = self.core_service.list_roles(context.organisation_id)
+        return ApiResponse(data={"items": [{
+            "id": str(item.id), "organisation_id": str(item.organisation_id), "code": item.code,
+            "name": item.name, "scope": item.scope, "status": item.status,
+            "created_at": item.created_at.isoformat(),
+        } for item in items]}, request_id=context.request_id)
+
+    def company_role_permissions(self, context, role_id: UUID) -> ApiResponse:
+        """Read one tenant role's permissions through Core authority."""
+        self.require_permission(context, "company.roles.manage")
+        role = self.core_service.get_role(role_id)
+        if role.organisation_id != context.organisation_id:
+            raise AuthorizationError("Role does not belong to the current organisation.")
+        items = self.core_service.list_role_permissions(role_id)
+        return ApiResponse(data={"items": [{
+            "id": str(item.id), "code": item.code, "name": item.name,
+            "created_at": item.created_at.isoformat(),
+        } for item in items]}, request_id=context.request_id)
+
+    def company_permissions(self, context) -> ApiResponse:
+        """Read the Core permission catalogue through the application boundary."""
+        self.require_permission(context, "company.roles.manage")
+        items = self.core_service.list_permissions()
+        return ApiResponse(data={"items": [{
+            "id": str(item.id), "code": item.code, "name": item.name,
+            "created_at": item.created_at.isoformat(),
+        } for item in items]}, request_id=context.request_id)
+
     def get_company_activity(self, context, *, action=None, target_type=None, identity_id=None, limit=100, offset=0) -> ApiResponse:
         """Read tenant-scoped Core audit activity for Company Platform oversight."""
         self.require_permission(context, "company.activity.view")
