@@ -9,48 +9,25 @@ from phoenix_core.http_api.authorization import resolve_request_context
 router = APIRouter(prefix="/api/v1/company", tags=["Company Platform"])
 
 
-def _service(request: Request):
-    return request.app.state.core_api.core_service
-
-
-def _organisation(context):
-    return context.organisation_id
-
-
-def _role_data(role):
-    return {"id": str(role.id), "organisation_id": str(role.organisation_id), "code": role.code, "name": role.name, "scope": role.scope, "status": role.status, "created_at": role.created_at.isoformat()}
-
-
-def _membership_data(item):
-    return {"id": str(item.id), "identity_id": str(item.identity_id), "organisation_id": str(item.organisation_id), "status": item.status, "created_at": item.created_at.isoformat()}
-
-
 @router.get("")
 async def current_company(request: Request):
     context = await resolve_request_context(request)
-    organisation = _service(request).get_organisation(_organisation(context))
-    return {"data": {"id": str(organisation.id), "code": organisation.code, "name": organisation.name, "status": organisation.status, "created_at": organisation.created_at.isoformat()}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_current(context)
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.get("/users")
 async def users(request: Request):
     context = await resolve_request_context(request)
-    request.app.state.core_api.require_permission(context, "company.memberships.manage")
-    service = _service(request)
-    memberships = service.list_memberships(_organisation(context))
-    items = []
-    for membership in memberships:
-        user = service.get_user_by_identity(membership.identity_id)
-        items.append({"id": str(user.id), "identity_id": str(user.identity_id), "username": user.username, "display_name": user.display_name, "user_status": user.status, "membership_id": str(membership.id), "membership_status": membership.status, "created_at": user.created_at.isoformat()})
-    return {"data": {"items": items}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_users(context)
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.get("/memberships")
 async def memberships(request: Request):
     context = await resolve_request_context(request)
-    request.app.state.core_api.require_permission(context, "company.memberships.manage")
-    items = _service(request).list_memberships(_organisation(context))
-    return {"data": {"items": [_membership_data(item) for item in items]}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_memberships(context)
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.get("/activity")
@@ -112,9 +89,8 @@ async def remove_membership(request: Request, membership_id: UUID):
 @router.get("/roles")
 async def roles(request: Request):
     context = await resolve_request_context(request)
-    request.app.state.core_api.require_permission(context, "company.roles.manage")
-    items = _service(request).list_roles(_organisation(context))
-    return {"data": {"items": [_role_data(item) for item in items]}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_roles(context)
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.post("/roles")
@@ -150,13 +126,8 @@ async def enable_role(request: Request, role_id: UUID):
 @router.get("/roles/{role_id}/permissions")
 async def role_permissions(request: Request, role_id: UUID):
     context = await resolve_request_context(request)
-    request.app.state.core_api.require_permission(context, "company.roles.manage")
-    role = _service(request).get_role(role_id)
-    if role.organisation_id != context.organisation_id:
-        from phoenix_core.errors import AuthorizationError
-        raise AuthorizationError("Role does not belong to the current organisation.")
-    items = _service(request).list_role_permissions(role_id)
-    return {"data": {"items": [{"id": str(item.id), "code": item.code, "name": item.name, "created_at": item.created_at.isoformat()} for item in items]}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_role_permissions(context, role_id)
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.post("/roles/{role_id}/permissions/{permission_id}")
@@ -177,7 +148,7 @@ async def revoke_role_permission(request: Request, role_id: UUID, permission_id:
 async def membership_roles(request: Request, membership_id: UUID):
     context = await resolve_request_context(request)
     result = request.app.state.core_api.company_membership_roles(context, membership_id)
-    return {"data": result.data, "request_id": context.request_id}
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.post("/memberships/{membership_id}/roles/{role_id}")
@@ -197,6 +168,5 @@ async def remove_role(request: Request, membership_id: UUID, role_id: UUID):
 @router.get("/permissions")
 async def permissions(request: Request):
     context = await resolve_request_context(request)
-    request.app.state.core_api.require_permission(context, "company.roles.manage")
-    items = _service(request).list_permissions()
-    return {"data": {"items": [{"id": str(item.id), "code": item.code, "name": item.name, "created_at": item.created_at.isoformat()} for item in items]}, "request_id": context.request_id}
+    result = request.app.state.core_api.company_permissions(context)
+    return {"data": result.data, "request_id": result.request_id}
