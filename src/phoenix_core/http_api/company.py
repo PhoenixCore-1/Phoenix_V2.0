@@ -35,6 +35,7 @@ async def current_company(request: Request):
 @router.get("/users")
 async def users(request: Request):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.memberships.manage")
     service = _service(request)
     memberships = service.list_memberships(_organisation(context))
     items = []
@@ -47,6 +48,7 @@ async def users(request: Request):
 @router.get("/memberships")
 async def memberships(request: Request):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.memberships.manage")
     items = _service(request).list_memberships(_organisation(context))
     return {"data": {"items": [_membership_data(item) for item in items]}, "request_id": context.request_id}
 
@@ -110,6 +112,7 @@ async def remove_membership(request: Request, membership_id: UUID):
 @router.get("/roles")
 async def roles(request: Request):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.roles.manage")
     items = _service(request).list_roles(_organisation(context))
     return {"data": {"items": [_role_data(item) for item in items]}, "request_id": context.request_id}
 
@@ -147,6 +150,7 @@ async def enable_role(request: Request, role_id: UUID):
 @router.get("/roles/{role_id}/permissions")
 async def role_permissions(request: Request, role_id: UUID):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.roles.manage")
     role = _service(request).get_role(role_id)
     if role.organisation_id != context.organisation_id:
         from phoenix_core.errors import AuthorizationError
@@ -186,5 +190,6 @@ async def remove_role(request: Request, membership_id: UUID, role_id: UUID):
 @router.get("/permissions")
 async def permissions(request: Request):
     context = await resolve_request_context(request)
+    request.app.state.core_api.require_permission(context, "company.roles.manage")
     items = _service(request).list_permissions()
     return {"data": {"items": [{"id": str(item.id), "code": item.code, "name": item.name, "created_at": item.created_at.isoformat()} for item in items]}, "request_id": context.request_id}
