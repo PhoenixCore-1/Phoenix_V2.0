@@ -5,6 +5,12 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 
 from phoenix_core.http_api.authorization import resolve_request_context
+from phoenix_core.http_api.company_models import (
+    CompanyRoleCreatePayload,
+    CompanyRoleUpdatePayload,
+    CompanyUserCreatePayload,
+    CompanyUserUpdatePayload,
+)
 
 router = APIRouter(prefix="/api/v1/company", tags=["Company Platform"])
 
@@ -50,18 +56,26 @@ async def activity(request: Request):
 
 
 @router.post("/users")
-async def create_user(request: Request):
+async def create_user(request: Request, payload: CompanyUserCreatePayload):
     context = await resolve_request_context(request)
-    payload = await request.json()
-    result = request.app.state.core_api.company_create_user(context, username=str(payload.get("username", "")), display_name=str(payload.get("display_name", "")), password=str(payload.get("password", "")))
+    result = request.app.state.core_api.company_create_user(
+        context,
+        username=payload.username,
+        display_name=payload.display_name,
+        password=payload.password,
+    )
     return {"data": result.data, "request_id": result.request_id}
 
 
 @router.patch("/users/{user_id}")
-async def update_user(request: Request, user_id: UUID):
+async def update_user(request: Request, user_id: UUID, payload: CompanyUserUpdatePayload):
     context = await resolve_request_context(request)
-    payload = await request.json()
-    result = request.app.state.core_api.company_update_user(context, user_id, username=payload.get("username"), display_name=payload.get("display_name"))
+    result = request.app.state.core_api.company_update_user(
+        context,
+        user_id,
+        username=payload.username,
+        display_name=payload.display_name,
+    )
     return {"data": result.data, "request_id": result.request_id}
 
 
@@ -94,18 +108,25 @@ async def roles(request: Request):
 
 
 @router.post("/roles")
-async def create_role(request: Request):
+async def create_role(request: Request, payload: CompanyRoleCreatePayload):
     context = await resolve_request_context(request)
-    payload = await request.json()
-    result = request.app.state.core_api.company_create_role(context, code=str(payload.get("code", "")), name=str(payload.get("name", "")))
+    result = request.app.state.core_api.company_create_role(
+        context,
+        code=payload.code,
+        name=payload.name,
+    )
     return {"data": result.data, "request_id": result.request_id}
 
 
 @router.patch("/roles/{role_id}")
-async def update_role(request: Request, role_id: UUID):
+async def update_role(request: Request, role_id: UUID, payload: CompanyRoleUpdatePayload):
     context = await resolve_request_context(request)
-    payload = await request.json()
-    result = request.app.state.core_api.company_update_role(context, role_id, code=payload.get("code"), name=payload.get("name"))
+    result = request.app.state.core_api.company_update_role(
+        context,
+        role_id,
+        code=payload.code,
+        name=payload.name,
+    )
     return {"data": result.data, "request_id": result.request_id}
 
 
