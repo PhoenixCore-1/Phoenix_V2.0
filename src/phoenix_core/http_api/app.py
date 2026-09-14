@@ -13,6 +13,7 @@ from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
 from phoenix_core.errors import AuthenticationError, ValidationError
 from phoenix_core.http_api.company import router as company_router
+from phoenix_core.http_api.visibility import router as visibility_router
 from phoenix_core.http_api.workspaces import router as workspace_router
 from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.services import CoreFoundationService
@@ -49,6 +50,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     application.state.core_api = core_api
     application.include_router(company_router)
     application.include_router(workspace_router)
+    application.include_router(visibility_router)
 
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
