@@ -102,6 +102,26 @@ def create_app(core_api: CoreApi) -> FastAPI:
         data.pop("token", None)
         return {"data": data, "request_id": result.request_id}
 
+    @application.get("/api/v1/auth/session")
+    def session(request: Request):
+        session_id = _session_id(request, core_api)
+        context = core_api.resolve_context(
+            request_id=request.state.request_id,
+            session_id=session_id,
+            organisation_id=_organisation_id(request),
+        )
+        return {
+            "data": {
+                "authenticated": True,
+                "session_id": str(context.session_id),
+                "identity_id": str(context.identity_id),
+                "organisation_id": str(context.organisation_id),
+                "permissions": sorted(context.permissions),
+                "entitlements": sorted(context.entitlements),
+            },
+            "request_id": request.state.request_id,
+        }
+
     @application.post("/api/v1/auth/logout")
     def logout(request: Request, response: Response):
         token = request.cookies.get(SESSION_COOKIE)
@@ -110,6 +130,15 @@ def create_app(core_api: CoreApi) -> FastAPI:
             return {"data": {"revoked": False}, "request_id": request.state.request_id}
         result = core_api.revoke_session(request_id=request.state.request_id, token=token)
         response.delete_cookie(SESSION_COOKIE, path="/")
+        return {"data": result.data, "request_id": result.request_id}
+
+    @application.get("/api/v1/me")
+    def current_user(request: Request):
+        result = core_api.get_current_user(
+            request_id=request.state.request_id,
+            session_id=_session_id(request, core_api),
+            organisation_id=_organisation_id(request),
+        )
         return {"data": result.data, "request_id": result.request_id}
 
     @application.get("/api/v1/me/identity")
@@ -130,14 +159,23 @@ def create_app(core_api: CoreApi) -> FastAPI:
         )
         return {"data": result.data, "request_id": result.request_id}
 
-    @application.get("/api/v1/me")
-    def current_user(request: Request):
-        result = core_api.get_current_user(
+    @application.get("/api/v1/me/permissions")
+    def current_permissions(request: Request):
+        context = core_api.resolve_context(
             request_id=request.state.request_id,
             session_id=_session_id(request, core_api),
             organisation_id=_organisation_id(request),
         )
-        return {"data": result.data, "request_id": result.request_id}
+        return {"data": {"permissions": sorted(context.permissions)}, "request_id": request.state.request_id}
+
+    @application.get("/api/v1/me/entitlements")
+    def current_entitlements(request: Request):
+        context = core_api.resolve_context(
+            request_id=request.state.request_id,
+            session_id=_session_id(request, core_api),
+            organisation_id=_organisation_id(request),
+        )
+        return {"data": {"entitlements": sorted(context.entitlements)}, "request_id": request.state.request_id}
 
     return application
 
