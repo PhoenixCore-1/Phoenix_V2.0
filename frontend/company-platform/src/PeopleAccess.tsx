@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 type User = { id: string; identity_id: string; username: string; display_name: string; user_status: string; membership_id: string; membership_status: string; created_at: string }
 type Role = { id: string; organisation_id: string; code: string; name: string; scope: string; status: string; created_at: string }
 type Permission = { id: string; code: string; name: string; created_at: string }
+type MembershipRole = { assignment_id: string; membership_id: string; role_id: string; code: string; name: string; scope: string; status: string; created_at: string }
 
 type ApiBody<T> = { data?: { items?: T[]; item?: T }; error?: { message?: string } }
 
@@ -19,9 +20,12 @@ export function PeopleAccess() {
   const [roles, setRoles] = useState<Role[]>([])
   const [permissions, setPermissions] = useState<Permission[]>([])
   const [rolePermissions, setRolePermissions] = useState<Permission[]>([])
+  const [membershipRoles, setMembershipRoles] = useState<MembershipRole[]>([])
   const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [loading, setLoading] = useState(true)
   const [permissionsLoading, setPermissionsLoading] = useState(false)
+  const [membershipRolesLoading, setMembershipRolesLoading] = useState(false)
   const [notice, setNotice] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('ALL')
@@ -41,13 +45,23 @@ export function PeopleAccess() {
     catch (error) { setRolePermissions([]); setNotice(error instanceof Error ? error.message : 'Unable to load role permissions.') }
     finally { setPermissionsLoading(false) }
   }
+  const loadMembershipRoles = async (membershipId: string) => {
+    if (!membershipId) { setMembershipRoles([]); return }
+    setMembershipRolesLoading(true); setNotice('')
+    try { const body = await api<{ data?: { items?: MembershipRole[] } }>(`/api/v1/company/memberships/${membershipId}/roles`); setMembershipRoles(body.data?.items ?? []) }
+    catch (error) { setMembershipRoles([]); setNotice(error instanceof Error ? error.message : 'Unable to load assigned roles.') }
+    finally { setMembershipRolesLoading(false) }
+  }
   const load = async () => { setLoading(true); setNotice(''); try { await Promise.all([loadUsers(), loadRoles(), loadPermissions()]) } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to load People & Access.') } finally { setLoading(false) } }
   useEffect(() => { void load() }, [])
   useEffect(() => { if (selectedRoleId) void loadRolePermissions(selectedRoleId); else setRolePermissions([]) }, [selectedRoleId])
+  useEffect(() => { const user = users.find((item) => item.id === selectedUserId); if (user) void loadMembershipRoles(user.membership_id); else setMembershipRoles([]) }, [selectedUserId, users])
 
   const filteredUsers = useMemo(() => users.filter((user) => `${user.display_name} ${user.username}`.toLowerCase().includes(query.toLowerCase()) && (status === 'ALL' || user.membership_status === status)), [users, query, status])
   const selectedRole = roles.find((role) => role.id === selectedRoleId)
+  const selectedUser = users.find((user) => user.id === selectedUserId)
   const assignedPermissionIds = useMemo(() => new Set(rolePermissions.map((permission) => permission.id)), [rolePermissions])
+  const assignedRoleIds = useMemo(() => new Set(membershipRoles.map((role) => role.role_id)), [membershipRoles])
 
   const createUser = async (event: FormEvent) => {
     event.preventDefault(); setSaving(true); setNotice('')
@@ -68,6 +82,21 @@ export function PeopleAccess() {
     setSaving(true); setNotice('')
     try { await api(`/api/v1/company/memberships/${user.membership_id}/${action}`, { method: 'POST' }); await loadUsers(); setNotice(`${labels[action]}d ${user.display_name}.`) }
     catch (error) { setNotice(error instanceof Error ? error.message : `Unable to ${action} membership.`) } finally { setSaving(false) }
+  }
+
+  const assignRole = async (role: Role) => {
+    if (!selectedUser || selectedUser.membership_status !== 'ACTIVE' || role.status !== 'ACTIVE') return
+    setSaving(true); setNotice('')
+    try { await api(`/api/v1/company/memberships/${selectedUser.membership_id}/roles/${role.id}`, { method: 'POST' }); await loadMembershipRoles(selectedUser.membership_id); setNotice(`${role.name} assigned to ${selectedUser.display_name}.`) }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to assign role.') } finally { setSaving(false) }
+  }
+
+  const removeRole = async (role: MembershipRole) => {
+    if (!selectedUser) return
+    if (!window.confirm(`Remove ${role.name} from ${selectedUser.display_name}?`)) return
+    setSaving(true); setNotice('')
+    try { await api(`/api/v1/company/memberships/${selectedUser.membership_id}/roles/${role.role_id}`, { method: 'DELETE' }); await loadMembershipRoles(selectedUser.membership_id); setNotice(`${role.name} removed from ${selectedUser.display_name}.`) }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to remove role.') } finally { setSaving(false) }
   }
 
   const createRole = async (event: FormEvent) => {
@@ -95,11 +124,8 @@ export function PeopleAccess() {
     if (!selectedRoleId) return
     const assigned = assignedPermissionIds.has(permission.id)
     setSaving(true); setNotice('')
-    try {
-      await api(`/api/v1/company/roles/${selectedRoleId}/permissions/${permission.id}`, { method: assigned ? 'DELETE' : 'POST' })
-      await loadRolePermissions(selectedRoleId)
-      setNotice(`${permission.name} ${assigned ? 'removed from' : 'granted to'} ${selectedRole?.name || 'role'}.`)
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to update role permission.') }
+    try { await api(`/api/v1/company/roles/${selectedRoleId}/permissions/${permission.id}`, { method: assigned ? 'DELETE' : 'POST' }); await loadRolePermissions(selectedRoleId); setNotice(`${permission.name} ${assigned ? 'removed from' : 'granted to'} ${selectedRole?.name || 'role'}.`) }
+    catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to update role permission.') }
     finally { setSaving(false) }
   }
 
@@ -109,7 +135,8 @@ export function PeopleAccess() {
     {tab === 'people' ? <>
       <div className="access-summary"><div><span>ACTIVE USERS</span><strong>{users.filter((u) => u.membership_status === 'ACTIVE').length}</strong></div><div><span>SUSPENDED</span><strong>{users.filter((u) => u.membership_status === 'SUSPENDED').length}</strong></div><div><span>TENANT ACCESS</span><strong>Core</strong></div><div><span>AUTHORITY</span><strong>Core controlled</strong></div></div>
       <div className="people-controls"><label className="search-field"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people..." /></label><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="REMOVED">Removed</option></select></div>
-      <div className="people-table-wrap"><table className="people-table"><thead><tr><th>PERSON</th><th>USERNAME</th><th>ACCESS</th><th>USER STATUS</th><th>ACTIONS</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="table-empty">Loading company users…</td></tr> : filteredUsers.length === 0 ? <tr><td colSpan={5} className="table-empty">{notice || 'No company users returned from Phoenix Core.'}</td></tr> : filteredUsers.map((user) => <tr key={user.id}><td><div className="person-cell"><span className="person-avatar">{user.display_name.slice(0, 2).toUpperCase()}</span><strong>{user.display_name}</strong></div></td><td>{user.username}</td><td><span className={`access-pill ${user.membership_status.toLowerCase()}`}>{user.membership_status}</span></td><td>{user.user_status}</td><td><div className="row-actions"><button className="row-action" onClick={() => void updateUser(user)} disabled={saving}>Edit</button>{user.membership_status === 'ACTIVE' ? <button className="row-action" onClick={() => void membershipAction(user, 'suspend')} disabled={saving}>Suspend</button> : user.membership_status === 'SUSPENDED' ? <button className="row-action" onClick={() => void membershipAction(user, 'restore')} disabled={saving}>Restore</button> : null}{user.membership_status !== 'REMOVED' && <button className="row-action danger" onClick={() => void membershipAction(user, 'remove')} disabled={saving}>Remove</button>}</div></td></tr>)}</tbody></table></div>
+      <div className="people-table-wrap"><table className="people-table"><thead><tr><th>PERSON</th><th>USERNAME</th><th>ACCESS</th><th>USER STATUS</th><th>ACTIONS</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="table-empty">Loading company users…</td></tr> : filteredUsers.length === 0 ? <tr><td colSpan={5} className="table-empty">{notice || 'No company users returned from Phoenix Core.'}</td></tr> : filteredUsers.map((user) => <tr key={user.id}><td><div className="person-cell"><span className="person-avatar">{user.display_name.slice(0, 2).toUpperCase()}</span><strong>{user.display_name}</strong></div></td><td>{user.username}</td><td><span className={`access-pill ${user.membership_status.toLowerCase()}`}>{user.membership_status}</span></td><td>{user.user_status}</td><td><div className="row-actions"><button className="row-action" onClick={() => setSelectedUserId(selectedUserId === user.id ? '' : user.id)} disabled={saving}>Roles</button><button className="row-action" onClick={() => void updateUser(user)} disabled={saving}>Edit</button>{user.membership_status === 'ACTIVE' ? <button className="row-action" onClick={() => void membershipAction(user, 'suspend')} disabled={saving}>Suspend</button> : user.membership_status === 'SUSPENDED' ? <button className="row-action" onClick={() => void membershipAction(user, 'restore')} disabled={saving}>Restore</button> : null}{user.membership_status !== 'REMOVED' && <button className="row-action danger" onClick={() => void membershipAction(user, 'remove')} disabled={saving}>Remove</button>}</div></td></tr>)}</tbody></table></div>
+      {selectedUser && <div className="access-panel" style={{ display: 'block', minHeight: 0, marginTop: 14 }}><div className="people-toolbar" style={{ padding: 0, marginBottom: 12 }}><div><span className="section-label">USER ROLES</span><h3 style={{ margin: '5px 0' }}>{selectedUser.display_name}</h3><p style={{ margin: 0, color: '#627287', fontSize: 11 }}>Manage this tenant membership's roles through Phoenix Core.</p></div><span className="access-pill active">{membershipRoles.length} ASSIGNED</span></div>{membershipRolesLoading ? <p>Loading assigned roles…</p> : <><div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>{membershipRoles.length === 0 ? <span style={{ color: '#627287', fontSize: 12 }}>No roles assigned.</span> : membershipRoles.map((role) => <span key={role.assignment_id} className="access-pill active" style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{role.name}<button type="button" onClick={() => void removeRole(role)} disabled={saving} style={{ border: 0, background: 'transparent', cursor: saving ? 'wait' : 'pointer', padding: 0, fontWeight: 700 }}>×</button></span>)}</div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>{roles.filter((role) => role.status === 'ACTIVE').map((role) => { const assigned = assignedRoleIds.has(role.id); return <button key={role.id} type="button" onClick={() => void assignRole(role)} disabled={saving || assigned || selectedUser.membership_status !== 'ACTIVE'} style={{ textAlign: 'left', border: '1px solid #d8e0e8', borderRadius: 8, padding: '10px 12px', background: assigned ? '#f4f7fa' : '#fff', cursor: saving || assigned ? 'default' : 'pointer', opacity: assigned ? 0.65 : 1 }}><strong style={{ display: 'block', fontSize: 12 }}>{role.name}</strong><span style={{ fontSize: 10, color: '#627287' }}>{role.code} · {assigned ? 'ASSIGNED' : 'ASSIGN ROLE'}</span></button> })}</div></>}</div>}
       {showUserForm && <form className="settings-editor" onSubmit={createUser}><div className="settings-editor-header"><div><span className="section-label">NEW COMPANY USER</span><h3>Create user</h3></div></div><label>Display name<input required value={userForm.display_name} onChange={(e) => setUserForm({ ...userForm, display_name: e.target.value })} /></label><label>Username<input required value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} /></label><label>Initial password<input required type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} /></label><div className="settings-editor-actions"><button type="button" className="refresh-button" onClick={() => setShowUserForm(false)}>Cancel</button><button type="submit" className="primary-action" disabled={saving}>{saving ? 'Creating…' : 'Create user'}</button></div></form>}
     </> : <>
       <div className="access-summary"><div><span>ROLES</span><strong>{roles.length}</strong></div><div><span>ACTIVE</span><strong>{roles.filter((r) => r.status === 'ACTIVE').length}</strong></div><div><span>PERMISSIONS</span><strong>{permissions.length}</strong></div><div><span>AUTHORITY</span><strong>Core controlled</strong></div></div>
