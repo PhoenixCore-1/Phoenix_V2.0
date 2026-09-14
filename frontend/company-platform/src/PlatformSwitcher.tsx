@@ -1,4 +1,5 @@
 import type { PlatformDestination } from './auth'
+import './platform-switcher.css'
 
 const labels: Record<PlatformDestination['code'], string> = {
   system: 'System Platform',
