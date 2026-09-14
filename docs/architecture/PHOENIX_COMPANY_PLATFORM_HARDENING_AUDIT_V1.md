@@ -1,6 +1,6 @@
 # Phoenix Company Platform — Hardening Audit V1
 
-**Status:** In progress / hardening gate
+**Status:** Hardening verification / release gate
 **Branch:** `feature/core-http-api-v1`
 **Date:** 2026-09-14
 
@@ -11,7 +11,7 @@ This audit verifies the Company Platform against the locked Phoenix architecture
 - Phoenix Core remains the sole identity, tenant, permission, entitlement and audit authority.
 - Company Platform remains tenant-level administration and oversight, not a second Phoenix control plane.
 - HTTP transport does not become a persistence or business authority.
-- Company Platform regulatory/compliance behavior must consume the appropriate System Platform/Core legal framework rather than create a competing authority.
+- Company Platform legal/compliance behavior consumes the appropriate Core/System Platform legal framework rather than create a competing authority.
 
 ## Findings and actions completed
 
@@ -29,7 +29,7 @@ Activity is sourced from the Core Audit service and is tenant-scoped through the
 
 ### 4. Company reports — HARDENED
 
-Reports are explicitly scoped to Company Administration and are now routed through a Company Platform application-service boundary rather than implementing reporting logic in the HTTP adapter.
+Reports are explicitly scoped to Company Administration and are routed through a Company Platform application-service boundary rather than implementing reporting logic in the HTTP adapter.
 
 ### 5. Company workspaces — HARDENED
 
@@ -37,37 +37,64 @@ Workspace HTTP routes no longer construct the workspace service or record audit 
 
 ### 6. Company Platform read authorization — HARDENED
 
-People & Access read surfaces now require the relevant Company Platform administration permission. This prevents an authenticated ordinary tenant member from enumerating company users, memberships, roles and permissions merely because they have a valid session.
+People & Access read surfaces require the relevant Company Platform administration permission. This prevents an authenticated ordinary tenant member from enumerating company users, memberships, roles and permissions merely because they have a valid session.
 
 ### 7. Migration bootstrap — HARDENED
 
-A central migration runner now applies every checked-in SQL migration in deterministic filename order for the development HTTP application. Company Platform workspace and visibility migrations, plus the Company Platform permission migration, are therefore included in a fresh development database.
+A central migration runner applies every checked-in SQL migration in deterministic filename order for the development HTTP application. Company Platform workspace, visibility and permission migrations are therefore included in a fresh development database.
 
-A missing `011_company_platform_permissions.sql` migration was restored with the eight authoritative Company Platform permissions.
+### 8. Company Settings — HARDENED
+
+Company Settings are tenant-scoped and routed through the Core configuration/application boundary. Company configuration permissions are enforced server-side and settings mutations are audited. The Company Platform does not gain authority over platform licensing or module activation through this surface.
+
+### 9. Company Visibility — HARDENED
+
+Company Visibility is behind a Company application-service boundary. The HTTP transport no longer constructs the persistence service, accesses the Core database directly or records visibility audit events itself.
+
+### 10. Atomic company user provisioning — HARDENED
+
+Company user provisioning is now a Core-authoritative transaction covering identity, user and organisation membership. A failure rolls the transaction back rather than leaving a partially provisioned company user. Company audit events are recorded after successful provisioning.
+
+### 11. CSRF protection — HARDENED
+
+State-changing authenticated browser requests require a same-origin `Origin` check at the Core HTTP boundary. The session cookie remains `HttpOnly`, `Secure` and `SameSite=Lax`.
+
+### 12. Typed HTTP request models — HARDENED
+
+HTTP request payloads for the hardened Company Platform surfaces use typed Pydantic request models and standard FastAPI validation rather than raw JSON mutation payload handling.
+
+### 13. Core application boundary — HARDENED
+
+Company Platform HTTP routes are progressively consolidated behind CoreApi and Company Platform application-service methods. Company Visibility was the remaining identified HTTP surface performing direct persistence/service construction and has now been moved behind an application boundary.
 
 ## Regulatory / Legal boundary
 
-The Company Platform must use the Phoenix legal/policy foundation already owned by Core and the System Platform framework. It must not create a second legal document, acceptance, audit, identity or regulatory authority.
+The Company Platform uses the Phoenix legal/policy foundation already owned by Core and the System Platform framework. It must not create a second legal document, acceptance, audit, identity or regulatory authority.
 
-The existing Core legal ADR explicitly establishes Core as authoritative for platform policy state, acceptance records, enforcement state and audit integration, while legal content remains controlled by the appropriate legal/commercial authority.
+ADR-040 establishes Phoenix Core as authoritative for platform policy state, acceptance records, enforcement state and audit integration, while legal content remains controlled by the appropriate legal/commercial authority.
 
-Broader ERP/SARS/tax compliance must not be introduced into the V2.0 Core merely as part of Company Platform hardening. If the System Platform regulatory framework is expanded, Company Platform should consume its published requirements and manage company-level applicability, obligations, evidence and status through the approved Core contracts.
+V2.0 explicitly excludes ERP compliance, SARS integration/submissions, tax compliance platforms, VAT automation, broad regulatory compliance frameworks, advanced legal contract lifecycle management and general-purpose governance/risk/compliance functionality. These are not Company Platform hardening requirements for Core V2.0.
 
-## Remaining hardening gates
+Company Platform may consume future published regulatory/legal requirements through approved Core/System Platform contracts when such capabilities are formally introduced. It must not invent a competing compliance authority in V2.0.
 
-These are deliberately not marked complete until verified in code and tests:
+## Remaining release gates
 
-1. **Company Settings** — tenant identity/configuration, departments, lead times, freight configuration, contacts and company defaults, without platform licensing/module control.
-2. **Company Compliance & Legal HTTP/application surface** — company obligations, applicability, contracts, evidence, status and expiry, connected to the authoritative legal/regulatory framework.
-3. **Atomic company user provisioning** — create user + membership as one Core transaction/workflow, or compensate cleanly if membership creation fails.
-4. **CSRF protection** — the secure session cookie uses `HttpOnly`, `Secure` and `SameSite=Lax`; state-changing browser requests still need an explicit CSRF strategy before production exposure.
-5. **Typed HTTP request models** — replace raw `request.json()` mutation payloads with Pydantic models and standard FastAPI validation responses.
-6. **Core application boundary consolidation** — remaining Company Platform read routes that call `core_service` directly should be progressively moved behind CoreApi/application-service methods.
-7. **Automated execution** — the new and existing Company Platform HTTP tests must be executed against the actual branch. No passing count is claimed until the suite has been run.
-8. **End-to-end browser flow** — login → Core session → Company Platform → tenant context → authorization → workspace must be verified against the actual frontend.
+### 1. Automated execution — RELEASE GATE
+
+The complete automated test suite must be executed against the actual `feature/core-http-api-v1` branch after the latest hardening changes. No current passing count is claimed until that execution occurs.
+
+### 2. End-to-end browser flow — RELEASE GATE
+
+The actual frontend must be verified through:
+
+`login → Core session → Company Platform → tenant context → authorization → Company workspace`
+
+This must be tested against the current integrated frontend/backend rather than inferred from individual endpoint tests.
 
 ## Gate decision
 
 **Company Platform is not yet declared fully locked.**
 
-The major boundary defects found during this audit have been corrected, but Company Settings, Company Compliance & Legal integration, production CSRF protection, and actual test execution remain release gates.
+The architectural and application-boundary hardening identified during this audit has been implemented. The remaining blockers are verification gates: full automated execution and actual browser end-to-end verification.
+
+No broader ERP/SARS/tax compliance layer should be added merely to close this audit.
