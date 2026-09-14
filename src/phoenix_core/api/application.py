@@ -7,6 +7,7 @@ from phoenix_core.api.contracts import ApiResponse
 from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.auth.service import AuthenticationService
 from phoenix_core.errors import AuthorizationError
+from phoenix_core.user_provisioning import CoreUserProvisioningService
 
 
 class CoreApi:
@@ -17,6 +18,7 @@ class CoreApi:
         self.core_service = core_service
         self.authentication_service = AuthenticationService(db)
         self.context_resolver = RequestContextResolver(db, core_service)
+        self.user_provisioning_service = CoreUserProvisioningService(db)
 
     def resolve_context(self, *, request_id: str, session_id, organisation_id=None):
         return self.context_resolver.resolve(request_id=request_id, session_id=session_id, organisation_id=organisation_id)
@@ -31,17 +33,8 @@ class CoreApi:
             raise AuthorizationError("Permission denied.")
 
     def authorize_identity(self, identity_id: UUID, organisation_id: UUID, permission: str) -> bool:
-        """Authoritative permission adapter for Core-owned resource services.
-
-        Resource services such as Communications may ask Core whether an
-        identity has a permission, but must not implement a second
-        authorization model. This method evaluates the same effective
-        permission source used when resolving an authenticated request.
-        """
-        permissions = self.core_service.effective_permissions(
-            identity_id,
-            organisation_id,
-        )
+        """Authoritative permission adapter for Core-owned resource services."""
+        permissions = self.core_service.effective_permissions(identity_id, organisation_id)
         return permission in permissions
 
     @staticmethod
@@ -82,7 +75,6 @@ class CoreApi:
         }, request_id=context.request_id)
 
     def company_current(self, context) -> ApiResponse:
-        """Read the current tenant through the Core application boundary."""
         organisation = self.core_service.get_organisation(context.organisation_id)
         return ApiResponse(data={
             "id": str(organisation.id), "code": organisation.code, "name": organisation.name,
@@ -90,7 +82,6 @@ class CoreApi:
         }, request_id=context.request_id)
 
     def company_users(self, context) -> ApiResponse:
-        """Read tenant users through the Core application boundary."""
         self.require_permission(context, "company.memberships.manage")
         memberships = self.core_service.list_memberships(context.organisation_id)
         items = []
@@ -105,7 +96,6 @@ class CoreApi:
         return ApiResponse(data={"items": items}, request_id=context.request_id)
 
     def company_memberships(self, context) -> ApiResponse:
-        """Read tenant memberships through the Core application boundary."""
         self.require_permission(context, "company.memberships.manage")
         items = self.core_service.list_memberships(context.organisation_id)
         return ApiResponse(data={"items": [{
@@ -115,7 +105,6 @@ class CoreApi:
         } for item in items]}, request_id=context.request_id)
 
     def company_roles(self, context) -> ApiResponse:
-        """Read tenant roles through the Core application boundary."""
         self.require_permission(context, "company.roles.manage")
         items = self.core_service.list_roles(context.organisation_id)
         return ApiResponse(data={"items": [{
@@ -125,7 +114,6 @@ class CoreApi:
         } for item in items]}, request_id=context.request_id)
 
     def company_role_permissions(self, context, role_id: UUID) -> ApiResponse:
-        """Read one tenant role's permissions through Core authority."""
         self.require_permission(context, "company.roles.manage")
         role = self.core_service.get_role(role_id)
         if role.organisation_id != context.organisation_id:
@@ -137,7 +125,6 @@ class CoreApi:
         } for item in items]}, request_id=context.request_id)
 
     def company_permissions(self, context) -> ApiResponse:
-        """Read the Core permission catalogue through the application boundary."""
         self.require_permission(context, "company.roles.manage")
         items = self.core_service.list_permissions()
         return ApiResponse(data={"items": [{
@@ -146,49 +133,38 @@ class CoreApi:
         } for item in items]}, request_id=context.request_id)
 
     def get_company_activity(self, context, *, action=None, target_type=None, identity_id=None, limit=100, offset=0) -> ApiResponse:
-        """Read tenant-scoped Core audit activity for Company Platform oversight."""
         self.require_permission(context, "company.activity.view")
         if identity_id is not None:
             memberships = self.core_service.list_memberships(context.organisation_id)
             if not any(item.identity_id == identity_id and item.status != "REMOVED" for item in memberships):
                 raise AuthorizationError("Activity identity does not belong to the current organisation.")
         events = self.core_service.audit_service.list(
-            organisation_id=context.organisation_id,
-            identity_id=identity_id,
-            action=action,
-            target_type=target_type,
-            limit=limit,
-            offset=offset,
+            organisation_id=context.organisation_id, identity_id=identity_id,
+            action=action, target_type=target_type, limit=limit, offset=offset,
         )
         return ApiResponse(data={
             "items": [{
                 "id": str(event.id),
                 "organisation_id": str(event.organisation_id) if event.organisation_id else None,
                 "identity_id": str(event.identity_id) if event.identity_id else None,
-                "action": event.action,
-                "target_type": event.target_type,
+                "action": event.action, "target_type": event.target_type,
                 "target_id": str(event.target_id) if event.target_id else None,
-                "request_id": event.request_id,
-                "created_at": event.created_at.isoformat(),
-            } for event in events],
-            "limit": limit,
-            "offset": offset,
+                "request_id": event.request_id, "created_at": event.created_at.isoformat(),
+            } for event in events], "limit": limit, "offset": offset,
         }, request_id=context.request_id)
 
     def _audit(self, context, *, action: str, target_type: str, target_id: UUID | None = None) -> None:
         self.core_service.audit_service.record(AuditEvent.create(
-            action=action,
-            organisation_id=context.organisation_id,
-            identity_id=context.identity_id,
-            target_type=target_type,
-            target_id=target_id,
-            request_id=context.request_id,
+            action=action, organisation_id=context.organisation_id, identity_id=context.identity_id,
+            target_type=target_type, target_id=target_id, request_id=context.request_id,
         ))
 
     def company_create_user(self, context, *, username: str, display_name: str, password: str) -> ApiResponse:
+        """Provision the user identity and tenant membership atomically in Core."""
         self.require_permission(context, "company.users.manage")
-        user = self.core_service.create_user(username, display_name, password)
-        membership = self.core_service.add_membership(user.identity_id, context.organisation_id)
+        user, membership = self.user_provisioning_service.provision(
+            username, display_name, password, context.organisation_id
+        )
         self._audit(context, action="COMPANY_USER_CREATED", target_type="USER", target_id=user.id)
         self._audit(context, action="COMPANY_MEMBERSHIP_CREATED", target_type="MEMBERSHIP", target_id=membership.id)
         return ApiResponse(data={
@@ -260,7 +236,6 @@ class CoreApi:
         return ApiResponse(data={"id": assignment_id, "membership_id": str(membership_id), "role_id": str(role_id)}, request_id=context.request_id)
 
     def company_membership_roles(self, context, membership_id: UUID) -> ApiResponse:
-        """Read roles assigned to one tenant membership through Core authority."""
         self.require_permission(context, "company.roles.manage")
         membership = self.core_service.get_membership(membership_id)
         if membership.organisation_id != context.organisation_id:
@@ -271,14 +246,9 @@ class CoreApi:
             for assignment in assignments:
                 if assignment["membership_id"] == str(membership_id):
                     items.append({
-                        "assignment_id": str(assignment["id"]),
-                        "membership_id": str(membership_id),
-                        "role_id": str(role.id),
-                        "code": role.code,
-                        "name": role.name,
-                        "scope": role.scope,
-                        "status": role.status,
-                        "created_at": role.created_at.isoformat(),
+                        "assignment_id": str(assignment["id"]), "membership_id": str(membership_id),
+                        "role_id": str(role.id), "code": role.code, "name": role.name,
+                        "scope": role.scope, "status": role.status, "created_at": role.created_at.isoformat(),
                     })
         return ApiResponse(data={"items": items}, request_id=context.request_id)
 
