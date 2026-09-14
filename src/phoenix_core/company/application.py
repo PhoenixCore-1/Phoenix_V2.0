@@ -11,7 +11,6 @@ from uuid import UUID
 from phoenix_core.api.contracts import ApiResponse
 from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.company.workspaces import CompanyWorkspaceService
-from phoenix_core.errors import AuthorizationError
 
 
 class CompanyPlatformApplicationService:
@@ -20,7 +19,6 @@ class CompanyPlatformApplicationService:
         self.core = core_api.core_service
 
     def list_workspaces(self, context) -> ApiResponse:
-        self.core_api.require_permission(context, "company.workspaces.manage")
         service = CompanyWorkspaceService(
             self.core.db, self.core.module_service, self.core.entitlement_service
         )
