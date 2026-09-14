@@ -17,6 +17,7 @@ from phoenix_core.http_api.reports import router as reports_router
 from phoenix_core.http_api.visibility import router as visibility_router
 from phoenix_core.http_api.workspaces import router as workspace_router
 from phoenix_core.infrastructure import SQLiteDatabase
+from phoenix_core.migration_runner import apply_all as apply_all_migrations
 from phoenix_core.services import CoreFoundationService
 
 SESSION_COOKIE = "phoenix_session"
@@ -129,8 +130,9 @@ def create_app(core_api: CoreApi) -> FastAPI:
 
 
 def create_development_app(database_path: str = "phoenix_core.db") -> FastAPI:
-    """Create a development API using the existing Core foundation."""
+    """Create a development API using all checked-in Core migrations."""
     db = SQLiteDatabase(database_path)
+    apply_all_migrations(db)
     core_service = CoreFoundationService(db)
     api = CoreApi(db, core_service)
     return create_app(api)
