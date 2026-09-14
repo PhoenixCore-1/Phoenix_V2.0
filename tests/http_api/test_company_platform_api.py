@@ -31,7 +31,7 @@ def build_client(tmp_path, *, admin=True):
             core.grant_permission(role.id, permission.id)
         core.assign_role(membership.id, role.id)
 
-    return TestClient(create_app(CoreApi(db, core))), organisation, core
+    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation, core
 
 
 def login(client, organisation):
