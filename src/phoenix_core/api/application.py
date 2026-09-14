@@ -195,6 +195,29 @@ class CoreApi:
         self._audit(context, action="COMPANY_ROLE_ASSIGNED", target_type="ROLE_ASSIGNMENT", target_id=UUID(assignment_id))
         return ApiResponse(data={"id": assignment_id, "membership_id": str(membership_id), "role_id": str(role_id)}, request_id=context.request_id)
 
+    def company_membership_roles(self, context, membership_id: UUID) -> ApiResponse:
+        """Read roles assigned to one tenant membership through Core authority."""
+        self.require_permission(context, "company.roles.manage")
+        membership = self.core_service.get_membership(membership_id)
+        if membership.organisation_id != context.organisation_id:
+            raise AuthorizationError("Membership does not belong to the current organisation.")
+        items = []
+        for role in self.core_service.list_roles(context.organisation_id):
+            assignments = self.core_service.list_role_assignments(role.id)
+            for assignment in assignments:
+                if assignment["membership_id"] == str(membership_id):
+                    items.append({
+                        "assignment_id": str(assignment["id"]),
+                        "membership_id": str(membership_id),
+                        "role_id": str(role.id),
+                        "code": role.code,
+                        "name": role.name,
+                        "scope": role.scope,
+                        "status": role.status,
+                        "created_at": role.created_at.isoformat(),
+                    })
+        return ApiResponse(data={"items": items}, request_id=context.request_id)
+
     def company_remove_role(self, context, membership_id: UUID, role_id: UUID) -> ApiResponse:
         self.require_permission(context, "company.roles.manage")
         membership = self.core_service.get_membership(membership_id)
