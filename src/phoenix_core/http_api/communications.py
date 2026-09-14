@@ -59,16 +59,17 @@ class PresencePayload(BaseModel):
     status: str
 
 
+@router.get("/channels")
+async def list_channels(request: Request):
+    context = await resolve_request_context(request)
+    result = _service(request).list_channels(context.identity_id, context.organisation_id)
+    return {"data": {"items": result}, "request_id": context.request_id}
+
+
 @router.post("/channels")
 async def create_channel(request: Request, payload: ChannelCreatePayload):
     context = await resolve_request_context(request)
-    result = _service(request).create_channel(
-        context.identity_id,
-        context.organisation_id,
-        payload.channel_type,
-        payload.name,
-        payload.visibility,
-    )
+    result = _service(request).create_channel(context.identity_id, context.organisation_id, payload.channel_type, payload.name, payload.visibility)
     return {"data": result, "request_id": context.request_id}
 
 
@@ -82,24 +83,14 @@ async def get_channel(request: Request, channel_id: UUID):
 @router.post("/channels/direct")
 async def create_direct_channel(request: Request, payload: DirectChannelPayload):
     context = await resolve_request_context(request)
-    result = _service(request).create_direct_channel(
-        context.identity_id,
-        context.organisation_id,
-        payload.target_identity_id,
-    )
+    result = _service(request).create_direct_channel(context.identity_id, context.organisation_id, payload.target_identity_id)
     return {"data": result, "request_id": context.request_id}
 
 
 @router.post("/channels/group")
 async def create_group_channel(request: Request, payload: GroupChannelPayload):
     context = await resolve_request_context(request)
-    result = _service(request).create_group_channel(
-        context.identity_id,
-        context.organisation_id,
-        payload.name,
-        payload.member_identity_ids,
-        payload.visibility,
-    )
+    result = _service(request).create_group_channel(context.identity_id, context.organisation_id, payload.name, payload.member_identity_ids, payload.visibility)
     return {"data": result, "request_id": context.request_id}
 
 
@@ -113,31 +104,14 @@ async def add_member(request: Request, channel_id: UUID, payload: MemberPayload)
 @router.post("/channels/{channel_id}/messages")
 async def send_message(request: Request, channel_id: UUID, payload: MessagePayload):
     context = await resolve_request_context(request)
-    result = _service(request).send_message(
-        channel_id,
-        context.identity_id,
-        payload.content,
-        payload.parent_message_id,
-        payload.context_type,
-        payload.context_id,
-    )
+    result = _service(request).send_message(channel_id, context.identity_id, payload.content, payload.parent_message_id, payload.context_type, payload.context_id)
     return {"data": result, "request_id": context.request_id}
 
 
 @router.get("/channels/{channel_id}/messages")
-async def list_messages(
-    request: Request,
-    channel_id: UUID,
-    limit: int = 50,
-    before_id: UUID | None = None,
-):
+async def list_messages(request: Request, channel_id: UUID, limit: int = 50, before_id: UUID | None = None):
     context = await resolve_request_context(request)
-    result = _service(request).list_messages(
-        channel_id,
-        context.identity_id,
-        limit,
-        before_id,
-    )
+    result = _service(request).list_messages(channel_id, context.identity_id, limit, before_id)
     return {"data": {"items": result, "limit": limit, "before_id": str(before_id) if before_id else None}, "request_id": context.request_id}
 
 
@@ -165,9 +139,5 @@ async def set_presence(request: Request, payload: PresencePayload):
 @router.get("/presence/{identity_id}")
 async def get_presence(request: Request, identity_id: UUID):
     context = await resolve_request_context(request)
-    result = _service(request).get_presence(
-        context.identity_id,
-        identity_id,
-        context.organisation_id,
-    )
+    result = _service(request).get_presence(context.identity_id, identity_id, context.organisation_id)
     return {"data": result, "request_id": context.request_id}
