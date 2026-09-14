@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request
 
+from phoenix_core.audit.domain import AuditEvent
 from phoenix_core.company.workspaces import CompanyWorkspaceService
 from phoenix_core.http_api.authorization import resolve_request_context
 
@@ -36,7 +37,7 @@ async def update_workspace(request: Request, module_code: str):
     )
     module = request.app.state.core_api.core_service.module_service.get_by_code(module_code)
     request.app.state.core_api.core_service.audit_service.record(
-        __import__("phoenix_core.audit.domain", fromlist=["AuditEvent"]).AuditEvent.create(
+        AuditEvent.create(
             action="COMPANY_WORKSPACE_UPDATED",
             organisation_id=context.organisation_id,
             identity_id=context.identity_id,
