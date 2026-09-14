@@ -2,13 +2,16 @@
 
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 
 from phoenix_core.api.application import CoreApi
+from phoenix_core.errors import ConflictError
 from phoenix_core.http_api.app import ORGANISATION_HEADER, create_app
 from phoenix_core.infrastructure import SQLiteDatabase
 from phoenix_core.migration_runner import apply_all
 from phoenix_core.services import CoreFoundationService
+from phoenix_core.user_provisioning import CoreUserProvisioningService
 
 
 def test_all_checked_in_migrations_install_company_platform_foundation(tmp_path):
@@ -62,7 +65,7 @@ def _client(tmp_path):
     core = CoreFoundationService(db)
     organisation = core.create_organisation("TEST", "Test Company")
     user = core.create_user("admin", "Company Admin", "password")
-    membership = core.add_membership(user.identity_id, organisation.id)
+    core.add_membership(user.identity_id, organisation.id)
     client = TestClient(create_app(CoreApi(db, core)), base_url="https://testserver")
     login = client.post(
         "/api/v1/auth/login",
@@ -95,3 +98,40 @@ def test_same_origin_state_change_is_allowed_to_reach_authentication_layer(tmp_p
         },
     )
     assert response.status_code == 200
+
+
+def test_atomic_company_user_provisioning_rolls_back_duplicate_username(tmp_path):
+    """A failed membership/user insert must not leave a partial tenant user behind."""
+    db = SQLiteDatabase(tmp_path / "core.db")
+    apply_all(db)
+    core = CoreFoundationService(db)
+    organisation = core.create_organisation("TEST", "Test Company")
+    provisioning = CoreUserProvisioningService(db)
+
+    first_user, first_membership = provisioning.provision(
+        "new-user", "New User", "password", organisation.id
+    )
+
+    before = {
+        table: db.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()["count"]
+        for table in ("identities", "users", "organisation_memberships")
+    }
+
+    with pytest.raises(ConflictError):
+        provisioning.provision("new-user", "Duplicate User", "password", organisation.id)
+
+    after = {
+        table: db.execute(f"SELECT COUNT(*) AS count FROM {table}").fetchone()["count"]
+        for table in ("identities", "users", "organisation_memberships")
+    }
+
+    assert after == before
+    assert db.execute(
+        "SELECT 1 FROM users WHERE id=? AND username=?",
+        (str(first_user.id), "new-user"),
+    ).fetchone()
+    assert db.execute(
+        "SELECT 1 FROM organisation_memberships WHERE id=?",
+        (str(first_membership.id),),
+    ).fetchone()
+    db.close()
