@@ -13,6 +13,7 @@ from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
 from phoenix_core.errors import AuthenticationError, ValidationError
 from phoenix_core.http_api.company import router as company_router
+from phoenix_core.http_api.reports import router as reports_router
 from phoenix_core.http_api.visibility import router as visibility_router
 from phoenix_core.http_api.workspaces import router as workspace_router
 from phoenix_core.infrastructure import SQLiteDatabase
@@ -51,6 +52,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     application.include_router(company_router)
     application.include_router(workspace_router)
     application.include_router(visibility_router)
+    application.include_router(reports_router)
 
     @application.middleware("http")
     async def request_id_middleware(request: Request, call_next):
@@ -61,23 +63,9 @@ def create_app(core_api: CoreApi) -> FastAPI:
 
     @application.exception_handler(Exception)
     async def exception_handler(request: Request, exc: Exception):
-        api_error = error_from_exception(
-            exc,
-            request_id=getattr(request.state, "request_id", _request_id(request)),
-        )
-        status_code = {
-            "VALIDATION_ERROR": 422,
-            "NOT_FOUND": 404,
-            "CONFLICT": 409,
-            "AUTHENTICATION_ERROR": 401,
-            "AUTHORIZATION_ERROR": 403,
-            "CORE_ERROR": 500,
-            "INTERNAL_ERROR": 500,
-        }.get(api_error.code, 500)
-        return JSONResponse(
-            status_code=status_code,
-            content={"code": api_error.code, "message": api_error.message, "request_id": api_error.request_id},
-        )
+        api_error = error_from_exception(exc, request_id=getattr(request.state, "request_id", _request_id(request)))
+        status_code = {"VALIDATION_ERROR": 422, "NOT_FOUND": 404, "CONFLICT": 409, "AUTHENTICATION_ERROR": 401, "AUTHORIZATION_ERROR": 403, "CORE_ERROR": 500, "INTERNAL_ERROR": 500}.get(api_error.code, 500)
+        return JSONResponse(status_code=status_code, content={"code": api_error.code, "message": api_error.message, "request_id": api_error.request_id})
 
     @application.get("/api/v1/health")
     def health(request: Request):
@@ -90,20 +78,8 @@ def create_app(core_api: CoreApi) -> FastAPI:
             organisation_id = UUID(payload["organisation_id"]) if payload.get("organisation_id") else None
         except ValueError as exc:
             raise ValidationError("Invalid organisation_id.") from exc
-        result = core_api.authenticate(
-            request_id=request.state.request_id,
-            username=str(payload.get("username", "")),
-            password=str(payload.get("password", "")),
-            organisation_id=organisation_id,
-        )
-        response.set_cookie(
-            SESSION_COOKIE,
-            result.data["token"],
-            httponly=True,
-            secure=True,
-            samesite="lax",
-            path="/",
-        )
+        result = core_api.authenticate(request_id=request.state.request_id, username=str(payload.get("username", "")), password=str(payload.get("password", "")), organisation_id=organisation_id)
+        response.set_cookie(SESSION_COOKIE, result.data["token"], httponly=True, secure=True, samesite="lax", path="/")
         data = dict(result.data)
         data.pop("token", None)
         return {"data": data, "request_id": result.request_id}
@@ -111,22 +87,8 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.get("/api/v1/auth/session")
     def session(request: Request):
         session_id = _session_id(request, core_api)
-        context = core_api.resolve_context(
-            request_id=request.state.request_id,
-            session_id=session_id,
-            organisation_id=_organisation_id(request),
-        )
-        return {
-            "data": {
-                "authenticated": True,
-                "session_id": str(context.session_id),
-                "identity_id": str(context.identity_id),
-                "organisation_id": str(context.organisation_id),
-                "permissions": sorted(context.permissions),
-                "entitlements": sorted(context.entitlements),
-            },
-            "request_id": request.state.request_id,
-        }
+        context = core_api.resolve_context(request_id=request.state.request_id, session_id=session_id, organisation_id=_organisation_id(request))
+        return {"data": {"authenticated": True, "session_id": str(context.session_id), "identity_id": str(context.identity_id), "organisation_id": str(context.organisation_id), "permissions": sorted(context.permissions), "entitlements": sorted(context.entitlements)}, "request_id": request.state.request_id}
 
     @application.post("/api/v1/auth/logout")
     def logout(request: Request, response: Response):
@@ -140,47 +102,27 @@ def create_app(core_api: CoreApi) -> FastAPI:
 
     @application.get("/api/v1/me")
     def current_user(request: Request):
-        result = core_api.get_current_user(
-            request_id=request.state.request_id,
-            session_id=_session_id(request, core_api),
-            organisation_id=_organisation_id(request),
-        )
+        result = core_api.get_current_user(request_id=request.state.request_id, session_id=_session_id(request, core_api), organisation_id=_organisation_id(request))
         return {"data": result.data, "request_id": result.request_id}
 
     @application.get("/api/v1/me/identity")
     def current_identity(request: Request):
-        result = core_api.get_current_identity(
-            request_id=request.state.request_id,
-            session_id=_session_id(request, core_api),
-            organisation_id=_organisation_id(request),
-        )
+        result = core_api.get_current_identity(request_id=request.state.request_id, session_id=_session_id(request, core_api), organisation_id=_organisation_id(request))
         return {"data": result.data, "request_id": result.request_id}
 
     @application.get("/api/v1/me/organisation")
     def current_organisation(request: Request):
-        result = core_api.get_current_organisation(
-            request_id=request.state.request_id,
-            session_id=_session_id(request, core_api),
-            organisation_id=_organisation_id(request),
-        )
+        result = core_api.get_current_organisation(request_id=request.state.request_id, session_id=_session_id(request, core_api), organisation_id=_organisation_id(request))
         return {"data": result.data, "request_id": result.request_id}
 
     @application.get("/api/v1/me/permissions")
     def current_permissions(request: Request):
-        context = core_api.resolve_context(
-            request_id=request.state.request_id,
-            session_id=_session_id(request, core_api),
-            organisation_id=_organisation_id(request),
-        )
+        context = core_api.resolve_context(request_id=request.state.request_id, session_id=_session_id(request, core_api), organisation_id=_organisation_id(request))
         return {"data": {"permissions": sorted(context.permissions)}, "request_id": request.state.request_id}
 
     @application.get("/api/v1/me/entitlements")
     def current_entitlements(request: Request):
-        context = core_api.resolve_context(
-            request_id=request.state.request_id,
-            session_id=_session_id(request, core_api),
-            organisation_id=_organisation_id(request),
-        )
+        context = core_api.resolve_context(request_id=request.state.request_id, session_id=_session_id(request, core_api), organisation_id=_organisation_id(request))
         return {"data": {"entitlements": sorted(context.entitlements)}, "request_id": request.state.request_id}
 
     return application
