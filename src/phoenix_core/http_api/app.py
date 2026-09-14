@@ -12,9 +12,11 @@ from fastapi.responses import JSONResponse
 
 from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
+from phoenix_core.communications.service import CommunicationsService
 from phoenix_core.errors import AuthenticationError, AuthorizationError, PhoenixError, ValidationError
 from phoenix_core.http_api.company import router as company_router
 from phoenix_core.http_api.compliance import router as compliance_router
+from phoenix_core.http_api.communications import router as communications_router
 from phoenix_core.http_api.evidence import router as evidence_router
 from phoenix_core.http_api.monitoring import router as monitoring_router
 from phoenix_core.http_api.reports import router as reports_router
@@ -53,12 +55,7 @@ def _organisation_id(request: Request) -> UUID | None:
 
 
 def _validate_same_origin(request: Request) -> None:
-    """Reject cross-origin state-changing browser requests.
-
-    Phoenix uses an HTTP-only session cookie, so state-changing requests need a
-    browser-origin check in addition to SameSite cookie protection. Requests
-    without an Origin header remain valid for non-browser/API clients.
-    """
+    """Reject cross-origin state-changing browser requests."""
     if request.method not in _MUTATING_METHODS:
         return
     origin = request.headers.get("Origin")
@@ -88,12 +85,6 @@ def _error_response(request: Request, exc: Exception) -> JSONResponse:
         "CORE_ERROR": 500,
         "INTERNAL_ERROR": 500,
     }.get(api_error.code, 500)
-
-    # Core's application/context layer deliberately uses AuthenticationError
-    # for an identity that is not a member of the requested organisation.
-    # At the HTTP boundary the identity is already authenticated, so exposing
-    # that cross-tenant attempt as an authorization failure is the correct
-    # transport contract without changing the framework-level Core semantics.
     if (
         isinstance(exc, AuthenticationError)
         and str(exc) == "User is not an active member of this organisation."
@@ -103,7 +94,6 @@ def _error_response(request: Request, exc: Exception) -> JSONResponse:
             request_id=api_error.request_id,
         )
         status_code = 403
-
     return JSONResponse(
         status_code=status_code,
         content={
@@ -118,8 +108,14 @@ def create_app(core_api: CoreApi) -> FastAPI:
     """Create the Phoenix Core HTTP API around an existing CoreApi."""
     application = FastAPI(title="Phoenix Core API", version="1.0")
     application.state.core_api = core_api
+    application.state.communications_service = CommunicationsService(
+        core_api.db,
+        authorize=core_api.authorize_identity,
+        audit_record=core_api.core_service.audit_service.record,
+    )
     application.include_router(company_router)
     application.include_router(compliance_router)
+    application.include_router(communications_router)
     application.include_router(evidence_router)
     application.include_router(monitoring_router)
     application.include_router(workspace_router)
