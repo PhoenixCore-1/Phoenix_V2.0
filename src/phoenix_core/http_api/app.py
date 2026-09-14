@@ -14,6 +14,7 @@ from phoenix_core.api.contracts import error_from_exception
 from phoenix_core.errors import AuthenticationError, ValidationError
 from phoenix_core.http_api.company import router as company_router
 from phoenix_core.http_api.compliance import router as compliance_router
+from phoenix_core.http_api.evidence import router as evidence_router
 from phoenix_core.http_api.reports import router as reports_router
 from phoenix_core.http_api.settings import router as settings_router
 from phoenix_core.http_api.visibility import router as visibility_router
@@ -54,6 +55,7 @@ def create_app(core_api: CoreApi) -> FastAPI:
     application.state.core_api = core_api
     application.include_router(company_router)
     application.include_router(compliance_router)
+    application.include_router(evidence_router)
     application.include_router(workspace_router)
     application.include_router(visibility_router)
     application.include_router(reports_router)
