@@ -144,7 +144,7 @@ async def disable_role(request: Request, role_id: UUID):
 async def enable_role(request: Request, role_id: UUID):
     context = await resolve_request_context(request)
     result = request.app.state.core_api.company_set_role_status(context, role_id, "ACTIVE")
-    return {"data": result.data, "request_id": context.request_id}
+    return {"data": result.data, "request_id": result.request_id}
 
 
 @router.get("/roles/{role_id}/permissions")
@@ -177,7 +177,7 @@ async def revoke_role_permission(request: Request, role_id: UUID, permission_id:
 async def membership_roles(request: Request, membership_id: UUID):
     context = await resolve_request_context(request)
     result = request.app.state.core_api.company_membership_roles(context, membership_id)
-    return {"data": result.data, "request_id": result.request_id}
+    return {"data": result.data, "request_id": context.request_id}
 
 
 @router.post("/memberships/{membership_id}/roles/{role_id}")
