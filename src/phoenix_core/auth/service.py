@@ -6,6 +6,7 @@ from phoenix_core.errors import AuthenticationError, ValidationError
 from phoenix_core.security.passwords import hash_password, verify_password
 from phoenix_core.sessions.domain import Session
 
+
 class AuthenticationService:
     def __init__(self, db):
         self.db = db
@@ -55,6 +56,24 @@ class AuthenticationService:
         )
         self.db.commit()
         return session, token
+
+    def resolve_session_id(self, token: str) -> UUID:
+        if not token:
+            raise AuthenticationError("Authentication required.")
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        row = self.db.execute(
+            "SELECT id, expires_at, status FROM sessions WHERE token_hash=?",
+            (token_hash,),
+        ).fetchone()
+        if not row or row["status"] != "ACTIVE":
+            raise AuthenticationError("Session is not active.")
+        from datetime import datetime, timezone
+        expires = datetime.fromisoformat(row["expires_at"])
+        if expires <= datetime.now(timezone.utc):
+            self.db.execute("UPDATE sessions SET status='EXPIRED' WHERE id=?", (row["id"],))
+            self.db.commit()
+            raise AuthenticationError("Session has expired.")
+        return UUID(row["id"])
 
     def change_password(self, user_id: UUID, current_password: str, new_password: str) -> None:
         if not new_password or len(new_password) < 12:
