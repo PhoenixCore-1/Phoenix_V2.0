@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from phoenix_core.api.application import CoreApi
 from phoenix_core.api.contracts import error_from_exception
@@ -55,14 +56,7 @@ def _organisation_id(request: Request) -> UUID | None:
 
 
 def _validate_same_origin(request: Request) -> None:
-    """Apply the Core HTTP CSRF policy to state-changing browser requests.
-
-    Phoenix uses the secure session cookie for browser authentication. A browser
-    request carrying that cookie must include an Origin header and the origin
-    must exactly match the effective API origin. Requests without a Phoenix
-    session cookie may be used by non-browser/API clients and retain the
-    existing authentication boundary at the endpoint itself.
-    """
+    """Apply the Core HTTP CSRF policy to state-changing browser requests."""
     if request.method not in _MUTATING_METHODS:
         return
     if SESSION_COOKIE not in request.cookies:
@@ -94,10 +88,7 @@ def _error_response(request: Request, exc: Exception) -> JSONResponse:
         "CORE_ERROR": 500,
         "INTERNAL_ERROR": 500,
     }.get(api_error.code, 500)
-    if (
-        isinstance(exc, AuthenticationError)
-        and str(exc) == "User is not an active member of this organisation."
-    ):
+    if isinstance(exc, AuthenticationError) and str(exc) == "User is not an active member of this organisation.":
         api_error = error_from_exception(
             AuthorizationError("User is not authorised for this organisation."),
             request_id=api_error.request_id,
@@ -111,6 +102,12 @@ def _error_response(request: Request, exc: Exception) -> JSONResponse:
             "request_id": api_error.request_id,
         },
     )
+
+
+class LoginPayload(BaseModel):
+    username: str = ""
+    password: str = ""
+    organisation_id: UUID | None = None
 
 
 def create_app(core_api: CoreApi) -> FastAPI:
@@ -146,38 +143,31 @@ def create_app(core_api: CoreApi) -> FastAPI:
     @application.exception_handler(PhoenixError)
     async def phoenix_exception_handler(request: Request, exc: PhoenixError):
         response = _error_response(request, exc)
-        response.headers[REQUEST_ID_HEADER] = getattr(
-            request.state, "request_id", _request_id(request)
-        )
+        response.headers[REQUEST_ID_HEADER] = getattr(request.state, "request_id", _request_id(request))
         return response
 
     @application.exception_handler(Exception)
     async def exception_handler(request: Request, exc: Exception):
         response = _error_response(request, exc)
-        response.headers[REQUEST_ID_HEADER] = getattr(
-            request.state, "request_id", _request_id(request)
-        )
+        response.headers[REQUEST_ID_HEADER] = getattr(request.state, "request_id", _request_id(request))
         return response
 
     @application.get("/api/v1/health")
     def health(request: Request):
         response = JSONResponse(
-            content={
-                "data": {"status": "ok", "service": "phoenix-core"},
-                "request_id": request.state.request_id,
-            }
+            content={"data": {"status": "ok", "service": "phoenix-core"}, "request_id": request.state.request_id}
         )
         response.headers[REQUEST_ID_HEADER] = request.state.request_id
         return response
 
     @application.post("/api/v1/auth/login")
-    async def login(request: Request, response: Response):
-        payload = await request.json()
-        try:
-            organisation_id = UUID(payload["organisation_id"]) if payload.get("organisation_id") else None
-        except ValueError as exc:
-            raise ValidationError("Invalid organisation_id.") from exc
-        result = core_api.authenticate(request_id=request.state.request_id, username=str(payload.get("username", "")), password=str(payload.get("password", "")), organisation_id=organisation_id)
+    async def login(request: Request, response: Response, payload: LoginPayload):
+        result = core_api.authenticate(
+            request_id=request.state.request_id,
+            username=payload.username,
+            password=payload.password,
+            organisation_id=payload.organisation_id,
+        )
         response.set_cookie(SESSION_COOKIE, result.data["token"], httponly=True, secure=True, samesite="lax", path="/")
         data = dict(result.data)
         data.pop("token", None)
