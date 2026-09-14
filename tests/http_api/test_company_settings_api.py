@@ -19,7 +19,7 @@ def build_client(tmp_path):
     permission = core.create_permission("company.configuration.manage", "Manage company configuration")
     core.grant_permission(role.id, permission.id)
     core.assign_role(membership.id, role.id)
-    return TestClient(create_app(CoreApi(db, core))), organisation, core
+    return TestClient(create_app(CoreApi(db, core)), base_url="https://testserver"), organisation, core
 
 
 def login(client, organisation):
@@ -60,7 +60,7 @@ def test_company_settings_require_configuration_permission(tmp_path):
     membership = core.add_membership(user.identity_id, organisation.id)
     role = core.create_role(organisation.id, "user", "Company User")
     core.assign_role(membership.id, role.id)
-    client = TestClient(create_app(CoreApi(db, core)))
+    client = TestClient(create_app(CoreApi(db, core)), base_url="https://testserver")
 
     response = client.post(
         "/api/v1/auth/login",
