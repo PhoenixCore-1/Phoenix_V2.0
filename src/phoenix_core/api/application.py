@@ -30,6 +30,20 @@ class CoreApi:
         if not context.has_permission(permission):
             raise AuthorizationError("Permission denied.")
 
+    def authorize_identity(self, identity_id: UUID, organisation_id: UUID, permission: str) -> bool:
+        """Authoritative permission adapter for Core-owned resource services.
+
+        Resource services such as Communications may ask Core whether an
+        identity has a permission, but must not implement a second
+        authorization model. This method evaluates the same effective
+        permission source used when resolving an authenticated request.
+        """
+        permissions = self.core_service.effective_permissions(
+            identity_id,
+            organisation_id,
+        )
+        return permission in permissions
+
     @staticmethod
     def require_entitlement(context, module_code: str) -> None:
         if not context.has_entitlement(module_code):
